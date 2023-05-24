@@ -188,7 +188,7 @@ def train_black_box(X_train, Y_train, dataset, black_box, black_box_filename, us
 def get_autoencoder(X, ae_name, dataset, path_aemodels):
     shape = X[0].shape
     input_dim = np.prod(X[0].shape)
-    verbose = True
+    verbose = False
     store_intermediate = True
 
     if dataset == 'mnist':

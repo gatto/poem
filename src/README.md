@@ -5,7 +5,8 @@
 - `oriautoencoder` no changes
 
 `experiments`
-- `oriexputil` no changes
+- `oriexputil`
+    line 188 def get_autoencoder was verbose=True
 
 `ilore`
 - `decision_tree`
