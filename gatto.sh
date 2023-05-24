@@ -1,9 +1,13 @@
-# start script by gatto v0.1
+#!/usr/bin/bash
 #
-# to use it:
+# Start script by gatto v0.2
+#
+# To use it:
 # chmod +x gatto.sh
-# mv gatto.sh ~/.local/bin/gatto
-cd repos/tesi
-source venv/bin/activate
-conda activate tesi
+# mv -f gatto.sh ~/.local/bin/gatto
+# gatto
+#
+cd ~/repos/tesi
+source ~/repos/tesi/venv/bin/activate
+source ~/miniconda3/bin/activate tesi
 jupyter notebook --ip 0.0.0.0 --no-browser

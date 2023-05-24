@@ -27,3 +27,9 @@ scikit-learn
 scikit-image
 rich
 deap
+
+# config
+jupyter notebook --generate-config
+in ~/.jupyter/jupyter_notebook_config.py, change:
+    c.NotebookApp.custom_display_url = 'http://epimelesi.isti.cnr.it:8888'
+    
