@@ -62,21 +62,21 @@ def get_black_box(black_box, black_box_filename, use_rgb, return_model=False):
         bb = pickle.load(open(black_box_filename + '.pickle', 'rb'))
 
         def bb_predict(X):
-            X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
+            #g X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
             X = X.astype('float32') / 255.
             X = np.array([x.ravel() for x in X])
             Y = bb.predict(X)
             return Y
 
         def bb_predict_proba(X):
-            X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
+            #g X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
             X = X.astype('float32') / 255.
             X = np.array([x.ravel() for x in X])
             Y = bb.predict_proba(X)
             return Y
 
         def transform(X):
-            X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
+            #g X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
             X = X.astype('float32') / 255.
             X = np.array([x.ravel() for x in X])
             return X
@@ -148,7 +148,7 @@ def train_black_box(X_train, Y_train, dataset, black_box, black_box_filename, us
             model = AdaBoostClassifier(n_estimators=100, random_state=random_state)
 
         def bb_fit(X, Y):
-            X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
+            #g X = np.array([rgb2gray(x) for x in X]) if not use_rgb else X
             X = X.astype('float32') / 255.
             X = np.array([x.ravel() for x in X])
             model.fit(X, Y)
