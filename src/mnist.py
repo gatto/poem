@@ -5,7 +5,6 @@ current_user = user_names[0]
 import json
 import logging
 import random
-import requests
 import sys
 import warnings
 from abc import abstractmethod
@@ -17,6 +16,7 @@ from statistics import variance
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import requests
 import tensorflow as tf
 from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
@@ -28,6 +28,7 @@ from numpy import linalg as LA
 from oriexputil import get_autoencoder, get_black_box, get_dataset, train_black_box
 from rich import print
 from rich.console import Console
+from rich.progress import track
 from rich.table import Table
 from skimage import feature, transform
 from skimage.color import gray2rgb
@@ -70,6 +71,7 @@ console = Console()
 
 # Setting general variables
 logger.setLevel(logging.INFO)
+warnings.filterwarnings('ignore')
 
 random_state = 0
 dataset = 'mnist'
@@ -98,21 +100,24 @@ logging.info(f"✅ Setup for {current_user} done.")
 try:
     run_options = sys.argv[1]
 except IndexError:
-    raise Exception("possible runtime arguments are train-aae, train-bb, explain <index_image_to_explain>")
+    raise Exception("possible runtime arguments are:\n[red]delete-all[/], [green]train-aae[/], [green]train-bb[/], [green]explain <index_image_to_explain>[/]")
 
 
-# Only run if you want this to start over, or you are running this for the first time to create the data folders.
-#g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
-# empty_folder("./data/aemodels/mnist/aae/explanation")
-# empty_folder("./data/aemodels/mnist/aae")
-# empty_folder("./data/models")
-# empty_folder("./data/results/bb")
+if run_options = "delete-all":
+    # Only run if you want this to start over, or you are running this for the first time to create the data folders.
+    #g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
+    empty_folder("./data/aemodels/mnist/aae/explanation")
+    empty_folder("./data/aemodels/mnist/aae")
+    empty_folder("./data/models")
+    empty_folder("./data/results/bb")
+    exit(0)
 
 # # Build Dataset
 
 # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
-# 3 different alternatives:
+console.print("Loading dataset")
 
+# 3 different alternatives:
 """
 # carlo:
 (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
@@ -124,18 +129,18 @@ X_test = np.expand_dims(X_test, 3)
 X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
 X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 """
-
 # for grayscale:
 (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-X_train = np.stack([x for x in X_train.reshape((-1, 28, 28, 1))], 0)
-X_test = np.stack([x for x in X_test.reshape((-1, 28, 28, 1))], 0)
+X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
+X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 
 # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+console.print("Sampling X_tree, Y_tree")
 random.seed("gattonemiao")
 indexes = random.sample(range(X_train.shape[0]), X_train.shape[0]//6)  #g get a list of 1/6 indexes of the len of X_train
 
 indexing_condition = []
-for x in range(X_train.shape[0]):
+for x in track(range(X_train.shape[0])):
     if x in indexes:
         indexing_condition.append(True)
     else:
@@ -159,22 +164,18 @@ Y_train = Y_train[~indexing_condition]
 # TODO: load dataset from csv
 
 # # Data understanding
-
-X_train[18][18][18]
-X_tree[18][18] #g they different
+console.print("Data understanding")
+print(f"X_train[18][18]: {X_train[18][18]}")
+print(f"X_tree[18][18]: {X_tree[18][18]}") #g they different
 
 table = Table(title="Data types")
-
 table.add_column("Name", style="cyan", no_wrap=True)
 table.add_column("dType", style="magenta")
 table.add_column("shape", style="magenta")
-
 datasets = ["X_train", "X_test", "X_tree", "Y_train", "Y_test", "Y_tree"]
-
 for dataset_name in datasets:
     variable = globals()[dataset_name]
     table.add_row(f"{dataset_name}", f"{type(variable)}", f"{variable.shape}")
-
 console.print(table)
 
 # # Training autoencoder
@@ -195,21 +196,17 @@ if run_options == "train-aae":
 
     if current_user == "Fabio":
         chat_id = "29375109"
-        message = "Done with autoencoder."
+        message = "✅ Done with autoencoder."
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
         print(requests.get(url).json()) # this sends the message
 
-    # # Testing autoencoder with rmse
-    path_aemodels = 'data/aemodels/%s/%s/' % (dataset, ae_name)
-
+    # # Testing autoencoder with rmse (xxx check with Carlo)
     ae = get_autoencoder(X_test, ae_name, dataset, path_aemodels)  #g this sets up the autoencoder but does not fit it
     ae.load_model()
-
     X_train_ae = ae.decode(ae.encode(X_train))
     X_test_ae = ae.decode(ae.encode(X_test))
 
     table = Table(title=f"Evaluation encoder over {dataset} dataset")
-
     table.add_column("Series", style="cyan", no_wrap=True)
     table.add_column("mean", style="dark_blue")
     table.add_column("RMSE", style="magenta")
@@ -224,13 +221,13 @@ if run_options == "train-aae":
     table.add_row("X_test - X_test_ae", f"{round(np.mean(X_test) - np.mean(X_test_ae), 4)}", "", f"{round(np.min(X_test) - np.min(X_test_ae), 4)}", f"{round(np.max(X_test) - np.max(X_test_ae), 4)}")
 
     console.print(table)
-
 # end train autoencoder
 
-# # Black box training
+# Black box training (xxx this was with fashion dataset, does it work with mnist?)
 if run_options == "train-bb":
-    print(dataset, black_box)
-    print(f"use_rgb: {use_rgb}")
+    print(f"{black_box} black box training on {dataset} with use_rgb: {use_rgb}")
+    print(f"X_train.shape: {X_train.shape}")
+    print(f"X_test.shape: {X_test.shape}")
 
     path = './'
     path_models = path + 'data/models/'
@@ -242,11 +239,7 @@ if run_options == "train-bb":
     train_black_box(X_train, Y_train, dataset, black_box, black_box_filename, use_rgb, random_state)  #g this fits and saves bb to disk
     bb_predict, bb_predict_proba = get_black_box(black_box, black_box_filename, use_rgb)  #g this loads bb to disk and returns 2 functs
 
-    print(X_test.shape)
-
     Y_pred = bb_predict(X_test)
-
-
 
     acc = accuracy_score(Y_test, Y_pred)
     cr = classification_report(Y_test, Y_pred)
@@ -263,6 +256,7 @@ if run_options == "train-bb":
     results = open(results_filename, 'w')
     results.write('%s\n' % json.dumps(res, sort_keys=True, indent=4))
     results.close()
+# end black box training
 
 # explain an image
 if run_options == "explain":
@@ -272,11 +266,12 @@ if run_options == "explain":
     print(f"We have {NUM_IMAGES} images")
 
     batch_size = 64
-    epochs = 10  # was 10k
-    num_classes = 10
-    classes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    epochs = 10000  # was 10k
+    class_values = ['%s' % i for i in range(len(np.unique(Y_test)))]
+    num_classes = len(class_values)
+    print(f"Classes are: {class_values}")
 
-
+"""
     def image_generator(filelist, batch_size, mode="train", aug=None):
         while True:
             images = []
@@ -346,6 +341,7 @@ if run_options == "explain":
     trainGen = image_generator(X_train, batch_size, mode="train", aug=aug)
     testGen = image_generator(X_test, batch_size, mode="train", aug=None)
     print(f"X_test.shape: {X_test.shape}")
+"""
 
     # ILOREM
     ae_name = 'aae'
@@ -353,51 +349,47 @@ if run_options == "explain":
     path = './'
     path_models = path + 'data/models/'
     path_aemodels = path + 'data/aemodels/%s/%s/' % (dataset, ae_name)
-
     black_box_filename = path_models + '%s_%s' % (dataset, black_box)
 
     bb_predict, bb_predict_proba = get_black_box(black_box, black_box_filename, use_rgb)  #g this loads bb to disk and returns 2 functs
 
     Y_pred = bb_predict(X_test)
-
     print(classification_report(Y_test, Y_pred))
 
-    ae = get_autoencoder(X_train, ae_name, dataset, path_aemodels)  # was next(trainGen) instead of X_train
+    ae = get_autoencoder(X_test, ae_name, dataset, path_aemodels)  # was next(trainGen) instead of X_train (xxx X_test or X_train?)
     ae.load_model()
 
-    #index_tr = random.randrange(0, NUM_IMAGES)
     try:
         index_tr = sys.argv[2]
     except IndexError:
         index_tr = 156
-    print(f"explaining image #{index_tr}")
-    img = X_train[index_tr]
+    console.print(f"explaining image #{index_tr} from [red]test[/] set")
+    img = X_test[index_tr]
     plt.imshow(img)
     plt.savefig('./data/aemodels/mnist/aae/explanation/img_to_explain_%s.png' %index_tr, dpi=150)
 
-    class_values = classes  #g was ['0', '1', '2', '3', '4', '5', '6', '7']
     class_name = 'class'
 
     #g explainer was size = 1000
-    explainer = ILOREM(bb_predict, class_name, class_values, neigh_type='rnd', use_prob=True, size=100, ocr=0.01,
+    explainer = ILOREM(bb_predict, class_name, class_values, neigh_type='rnd', use_prob=True, size=1000, ocr=0.1,
                         kernel_width=None, kernel=None, autoencoder=ae, use_rgb=use_rgb, valid_thr=0.5,
                         filter_crules=True, random_state=random_state, verbose=False, alpha1=0.5, alpha2=0.5,
                         metric=neuclidean, ngen=10, mutpb=0.2, cxpb=0.5, tournsize=3, halloffame_ratio=0.1,
                         bb_predict_proba=bb_predict_proba)
 
-    latent_dim=256  #g ?? not used as far as i can see
+    exp = explainer.explain_instance(img, num_samples=1000, use_weights=True, metric=neuclidean)
 
-    exp = explainer.explain_instance(img, num_samples=500, use_weights=True, metric=neuclidean)
-
-    print('e = {\n\tr = %s\n\tc = %s}' % (exp.rstr(), exp.cstr()))
-    print(f"exp.bb_pred: {exp.bb_pred}")
-    print(f"exp.dt_pred: {exp.dt_pred}")
-    print(f"exp.fidelity: {exp.fidelity}")
+    console.print('e = {\n\tr = %s\n\tc = %s}' % (exp.rstr(), exp.cstr()))
+    console.print(f"exp.bb_pred: {exp.bb_pred}")
+    console.print(f"exp.dt_pred: {exp.dt_pred}")
+    console.print(f"exp.fidelity: {exp.fidelity}")
 
     #print(bb_predict(img))  #g si aspetta 784 feature ma img ne ha 28? Forse devo fare .flatten? img dovrebbe essere 28x28
     #print(bb_predict_proba(img))  #g come sopra
-    print(exp.limg)
+    print(f"exp.limg: {exp.limg}")
 
+
+    # xxx continue checking from here
     print("get_counterfactual_prototypes")
     cprototypes = exp.get_counterfactual_prototypes(eps=0.01)
     cont=0
@@ -473,7 +465,7 @@ if run_options == "explain":
 
     if current_user == "Fabio":
         chat_id = "29375109"
-        message = "Done with explanation."
+        message = "✅ Done with explanation."
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
         print(requests.get(url).json()) # this sends the message
-
+# end explain an image

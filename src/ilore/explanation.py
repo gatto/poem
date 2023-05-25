@@ -68,8 +68,7 @@ class ImageExplanation(Explanation):
     def get_prototypes_respecting_rule(self, num_prototypes=5, return_latent=False, return_diff=False, features=None,
                                        max_attempts=100000):
         img2show = np.copy(self.img)
-        #g timg = rgb2gray(img2show) if not self.use_rgb else img2show
-        timg = img2show
+        timg = rgb2gray(img2show) if not self.use_rgb else img2show
 
         features = [i for i in range(self.autoencoder.latent_dim)] if features is None else features
         all_features = [i for i in range(self.autoencoder.latent_dim)]
@@ -89,10 +88,10 @@ class ImageExplanation(Explanation):
                 pimg = self.autoencoder.decode(lpimg.reshape(1, -1))[0]
                 bbo = self.bb_predict(np.array([pimg]))[0]
                 if bbo == self.bb_pred:
-                    # pimg = rgb2gray(pimg) if not self.use_rgb else pimg
+                    pimg = rgb2gray(pimg) if not self.use_rgb else pimg
                     diff = timg - pimg
                     diff = (diff - np.min(diff)) / (np.max(diff) - np.min(diff)) * 255
-                    # diff = np.mean(diff, 2) if self.use_rgb else diff
+                    diff = np.mean(diff, 2) if self.use_rgb else diff
                     # diff = rgb2gray(diff) if self.use_rgb else diff
 
                     values, counts = np.unique(np.abs(diff), return_counts=True)
