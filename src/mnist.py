@@ -64,6 +64,15 @@ def empty_folder(my_path: str | Path):
 
     my_path.mkdir(parents=True, exist_ok=True)
 
+
+def bad_task(task: str, current_user: str) -> None:
+    if current_user == "Fabio":
+        chat_id = "29375109"
+        message = f"❌ Bad {task}."
+        url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
+        print(requests.get(url).json()) # this sends the message
+
+
 logger = logging.getLogger()
 console = Console()
 
@@ -390,69 +399,89 @@ if run_options == "explain":
 
 
     # xxx continue checking from here
-    print("get_counterfactual_prototypes")
-    cprototypes = exp.get_counterfactual_prototypes(eps=0.01)
+    task = "get_counterfactual_prototypes"
+    print(task)
     cont=0
-    for cpimg in cprototypes:
-        bboc = bb_predict(np.array([cpimg]))[0]
-        plt.imshow(cpimg)
-        plt.title('cf - black box %s' % bboc)
-        plt.savefig('./data/aemodels/mnist/aae/explanation/cprototypes_%s_%s.png' % (index_tr,cont), dpi=150)
-        #plt.show()
-        cont=cont+1
+    try:
+        cprototypes = exp.get_counterfactual_prototypes(eps=0.01)
+        for cpimg in cprototypes:
+            bboc = bb_predict(np.array([cpimg]))[0]
+            plt.imshow(cpimg)
+            plt.title('cf - black box %s' % bboc)
+            plt.savefig('./data/aemodels/mnist/aae/explanation/cprototypes_%s_%s.png' % (index_tr,cont), dpi=150)
+            #plt.show()
+            cont=cont+1
+    except:
+        bad_task(task, current_user)
+        exit(1)
+    print(f"I made #{cont} {task}.")
 
-    print(f"I made {cont} counterfactual prototypes")
-
-    print("get_prototypes_respecting_rule")
-    prototypes = exp.get_prototypes_respecting_rule(num_prototypes=3)
+    task = "get_prototypes_respecting_rule"
+    print(task)
     cont=0
-    for pimg in prototypes:
-        bbo = bb_predict(np.array([pimg]))[0]
-        plt.imshow(pimg)
-        plt.title('prototype %s' % bbo)
-        plt.savefig('./data/aemodels/mnist/aae/explanation/prototypes_%s_%s.png' % (index_tr,cont), dpi=150)
-        #plt.show()
-        cont=cont+1
-
-    print(f"I made {cont} factual prototypes")
+    try:
+        prototypes = exp.get_prototypes_respecting_rule(num_prototypes=3)
+        for pimg in prototypes:
+            bbo = bb_predict(np.array([pimg]))[0]
+            plt.imshow(pimg)
+            plt.title('prototype %s' % bbo)
+            plt.savefig('./data/aemodels/mnist/aae/explanation/prototypes_%s_%s.png' % (index_tr,cont), dpi=150)
+            #plt.show()
+            cont=cont+1
+    except:
+        bad_task(task, current_user)
+        exit(1)
+    print(f"I made #{cont} {task}.")
 
     #g wat is this
-    print("get_image_rule")
-    img2show, mask = exp.get_image_rule(features=None, samples=10)
-    plt.imshow(img2show, cmap='gray')
-    bbo = bb_predict(np.array([img2show]))[0]
-    plt.title('image to explain - black box %s' % bbo)
-    plt.savefig('./data/aemodels/mnist/aae/explanation/get_image_rule.png', dpi=150)
-    #plt.show()
+    task = "get_image_rule"
+    print(task)
+    try:
+        img2show, mask = exp.get_image_rule(features=None, samples=10)
+        plt.imshow(img2show, cmap='gray')
+        bbo = bb_predict(np.array([img2show]))[0]
+        plt.title('image to explain - black box %s' % bbo)
+        plt.savefig('./data/aemodels/mnist/aae/explanation/get_image_rule.png', dpi=150)
+    except:
+        bad_task(task, current_user)
+        exit(1)
 
     #g and wat tis
-    print("math1")
+    task = "math1"
+    print(task)
     dx, dy = 0.05, 0.05
-    xx = np.arange(0.0, img2show.shape[1], dx)
-    yy = np.arange(0.0, img2show.shape[0], dy)
-    xmin, xmax, ymin, ymax = np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy)
-    extent = xmin, xmax, ymin, ymax
-    cmap_xi = plt.get_cmap('Greys_r')
-    cmap_xi.set_bad(alpha=0)
+    try:
+        xx = np.arange(0.0, img2show.shape[1], dx)
+        yy = np.arange(0.0, img2show.shape[0], dy)
+        xmin, xmax, ymin, ymax = np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy)
+        extent = xmin, xmax, ymin, ymax
+        cmap_xi = plt.get_cmap('Greys_r')
+        cmap_xi.set_bad(alpha=0)
+    except:
+        bad_task(task, current_user)
+        exit(1)
 
-    print("math2")
+    task = "math2"
+    print(task)
     # Compute edges (to overlay to heatmaps later)
     percentile = 100
     dilation = 3.0
     alpha = 0.8
-    xi_greyscale = img2show if len(img2show.shape) == 2 else np.mean(img2show, axis=-1)
-    #in_image_upscaled = transform.rescale(xi_greyscale, dilation, mode='constant')
-    in_image_upscaled=xi_greyscale
-    edges = feature.canny(in_image_upscaled).astype(float)
-    edges[edges < 0.5] = np.nan
-    edges[:5, :] = np.nan
-    edges[-5:, :] = np.nan
-    edges[:, :5] = np.nan
-    edges[:, -5:] = np.nan
-    overlay = edges
+    try:
+        xi_greyscale = img2show if len(img2show.shape) == 2 else np.mean(img2show, axis=-1)
+        #in_image_upscaled = transform.rescale(xi_greyscale, dilation, mode='constant')
+        in_image_upscaled=xi_greyscale
+        edges = feature.canny(in_image_upscaled).astype(float)
+        edges[edges < 0.5] = np.nan
+        edges[:5, :] = np.nan
+        edges[-5:, :] = np.nan
+        edges[:, :5] = np.nan
+        edges[:, -5:] = np.nan
+        overlay = edges
+    except:
+        bad_task(task, current_user)
+        exit(1)
 
-    # abs_max = np.percentile(np.abs(data), percentile)
-    # abs_min = abs_max
 
     print("plot")
     # plt.pcolormesh(range(mask.shape[0]), range(mask.shape[1]), mask, cmap=plt.cm.BrBG, alpha=1, vmin=0, vmax=255)
