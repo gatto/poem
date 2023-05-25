@@ -7,34 +7,35 @@ import logging
 import random
 import sys
 import warnings
-from abc import abstractmethod
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
-from statistics import variance
+warnings.filterwarnings('ignore')
+
+
+try:
+    run_options = sys.argv[1]
+except IndexError:
+    raise Exception("""
+    possible runtime arguments are:\n
+    understanding, delete-all, train-aae, train-bb, explain <index_image_to_explain>
+    """)
+
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import requests
 import tensorflow as tf
 from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
-from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling2D
-from keras.models import Sequential, model_from_json
 from keras.preprocessing.image import ImageDataGenerator
-from keras.utils import to_categorical
-from numpy import linalg as LA
-from oriexputil import get_autoencoder, get_black_box, get_dataset, train_black_box
+from oriexputil import get_autoencoder, get_black_box, train_black_box
 from rich import print
 from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 from skimage import feature, transform
 from skimage.color import gray2rgb
-from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
-from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.datasets import mnist
 
 
@@ -70,7 +71,9 @@ def bad_task(task: str, current_user: str) -> None:
         chat_id = "29375109"
         message = f"❌ Bad {task}."
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
-        print(requests.get(url).json()) # this sends the message
+        requests.get(url).json() # this sends the message
+    if current_user == "Carlo":
+        pass
 
 
 logger = logging.getLogger()
@@ -80,7 +83,6 @@ console = Console()
 
 # Setting general variables
 logger.setLevel(logging.INFO)
-warnings.filterwarnings('ignore')
 
 random_state = 0
 dataset = 'mnist'
@@ -93,7 +95,7 @@ use_rgb = False  #g with mnist dataset
 gpus = tf.config.list_physical_devices('GPU')
 logging.info(f"Do we even have a gpu? {'no 🤣' if len(gpus)==0 else gpus}")
 if len(gpus)>1:
-    logging.info(f"the code is not optimized for more than 1 gpu")
+    logging.info("the code is not optimized for more than 1 gpu")
 
 if current_user == "Carlo":
     # !pip install deap
@@ -106,13 +108,8 @@ if current_user == "Fabio":
     import tg_api_key
 logging.info(f"✅ Setup for {current_user} done.")
 
-try:
-    run_options = sys.argv[1]
-except IndexError:
-    raise Exception("possible runtime arguments are:\n[red]delete-all[/], [green]train-aae[/], [green]train-bb[/], [green]explain <index_image_to_explain>[/]")
 
-
-if run_options = "delete-all":
+if run_options == "delete-all":
     # Only run if you want this to start over, or you are running this for the first time to create the data folders.
     #g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
     empty_folder("./data/aemodels/mnist/aae/explanation")
@@ -126,17 +123,12 @@ if run_options = "delete-all":
 # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
 console.print("Loading dataset")
 
-# 3 different alternatives:
+# 2 different alternatives:
 """
 # carlo:
 (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
 X_train = np.expand_dims(X_train, 3)
 X_test = np.expand_dims(X_test, 3)
-
-# for rgb:
-(X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
-X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 """
 # for grayscale:
 (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
@@ -144,12 +136,11 @@ X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
 X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 
 # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-console.print("Sampling X_tree, Y_tree")
 random.seed("gattonemiao")
 indexes = random.sample(range(X_train.shape[0]), X_train.shape[0]//6)  #g get a list of 1/6 indexes of the len of X_train
 
 indexing_condition = []
-for x in track(range(X_train.shape[0])):
+for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
     if x in indexes:
         indexing_condition.append(True)
     else:
@@ -173,11 +164,12 @@ Y_train = Y_train[~indexing_condition]
 # TODO: load dataset from csv
 
 # # Data understanding
-console.print("Data understanding")
-print(f"X_train[18][18]: {X_train[18][18]}")
-print(f"X_tree[18][18]: {X_tree[18][18]}") #g they different
+if run_options == "understanding":
+    console.print("Data understanding")
+    print(f"X_train[18][18]: {X_train[18][18]}")
+    print(f"X_tree[18][18]: {X_tree[18][18]}") #g they different
 
-table = Table(title="Data types")
+table = Table(title="Datasets")
 table.add_column("Name", style="cyan", no_wrap=True)
 table.add_column("dType", style="magenta")
 table.add_column("shape", style="magenta")
@@ -207,7 +199,7 @@ if run_options == "train-aae":
         chat_id = "29375109"
         message = "✅ Done with autoencoder."
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
-        print(requests.get(url).json()) # this sends the message
+        requests.get(url).json() # this sends the message
 
     # # Testing autoencoder with rmse (xxx check with Carlo)
     ae = get_autoencoder(X_test, ae_name, dataset, path_aemodels)  #g this sets up the autoencoder but does not fit it
@@ -280,7 +272,7 @@ if run_options == "explain":
     num_classes = len(class_values)
     print(f"Classes are: {class_values}")
 
-"""
+    """
     def image_generator(filelist, batch_size, mode="train", aug=None):
         while True:
             images = []
@@ -350,7 +342,7 @@ if run_options == "explain":
     trainGen = image_generator(X_train, batch_size, mode="train", aug=aug)
     testGen = image_generator(X_test, batch_size, mode="train", aug=None)
     print(f"X_test.shape: {X_test.shape}")
-"""
+    """
 
     # ILOREM
     ae_name = 'aae'
@@ -393,14 +385,12 @@ if run_options == "explain":
     console.print(f"exp.dt_pred: {exp.dt_pred}")
     console.print(f"exp.fidelity: {exp.fidelity}")
 
-    #print(bb_predict(img))  #g si aspetta 784 feature ma img ne ha 28? Forse devo fare .flatten? img dovrebbe essere 28x28
-    #print(bb_predict_proba(img))  #g come sopra
     print(f"exp.limg: {exp.limg}")
 
 
     # xxx continue checking from here
     task = "get_counterfactual_prototypes"
-    print(task)
+    print(f"Doing [green]{task}[/]")
     cont=0
     try:
         cprototypes = exp.get_counterfactual_prototypes(eps=0.01)
@@ -417,7 +407,7 @@ if run_options == "explain":
     print(f"I made #{cont} {task}.")
 
     task = "get_prototypes_respecting_rule"
-    print(task)
+    print(f"Doing [green]{task}[/]")
     cont=0
     try:
         prototypes = exp.get_prototypes_respecting_rule(num_prototypes=3)
@@ -435,7 +425,7 @@ if run_options == "explain":
 
     #g wat is this
     task = "get_image_rule"
-    print(task)
+    print(f"Doing [green]{task}[/]")
     try:
         img2show, mask = exp.get_image_rule(features=None, samples=10)
         plt.imshow(img2show, cmap='gray')
@@ -448,7 +438,7 @@ if run_options == "explain":
 
     #g and wat tis
     task = "math1"
-    print(task)
+    print(f"Doing [green]{task}[/]")
     dx, dy = 0.05, 0.05
     try:
         xx = np.arange(0.0, img2show.shape[1], dx)
@@ -462,7 +452,7 @@ if run_options == "explain":
         exit(1)
 
     task = "math2"
-    print(task)
+    print(f"Doing [green]{task}[/]")
     # Compute edges (to overlay to heatmaps later)
     percentile = 100
     dilation = 3.0
@@ -496,5 +486,5 @@ if run_options == "explain":
         chat_id = "29375109"
         message = "✅ Done with explanation."
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
-        print(requests.get(url).json()) # this sends the message
+        requests.get(url).json() # this sends the message
 # end explain an image
