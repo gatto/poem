@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import requests
 import tensorflow as tf
+
 # from oab import TrainPoint
 from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
@@ -440,6 +441,18 @@ if run_options == "explain":
 
     print(f"exp.limg: {exp.limg}")
 
+    tosave = {
+        "rstr": exp.rstr(),
+        "cstr": exp.cstr(),
+        "bb_pred": exp.bb_pred,
+        "dt_pred": exp.dt_pred,
+        "fidelity": exp.fidelity,
+        "limg": exp.limg
+    }
+
+    with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.json", "w") as f:
+        f.write("%s\n" % json.dumps(tosave, sort_keys=True, indent=4))
+
     # xxx continue checking from here
     task = "get_counterfactual_prototypes"
     print(f"Doing [green]{task}[/]")
@@ -472,7 +485,7 @@ if run_options == "explain":
             if use_rgb:
                 plt.imshow(pimg)
             else:
-                plt.imshow(pimg.astype('uint8'), cmap='gray')
+                plt.imshow(pimg.astype("uint8"), cmap="gray")
             plt.title("prototype %s" % bbo)
             plt.savefig(
                 "./data/aemodels/mnist/aae/explanation/prototypes_%s_%s.png"
