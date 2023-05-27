@@ -1,10 +1,14 @@
 import io
+import json
+import pickle
 import sqlite3
 from pathlib import Path
 
 import numpy as np
-from attrs import Factory, asdict, define, field, make_class, validators
+from attrs import define, field, validators
 from rich import print
+from rich.console import Console
+from rich.table import Table
 
 data_table_structure = ("id int", "a array")
 
@@ -13,14 +17,26 @@ data_table_path = data_path / "tutorial.db"
 
 
 def load(id: int):
+    """
+    Loads a TrainPoint if you pass an id:int
+    Loads a set of TrainPoint if you pass an id: collection
+    """
     con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
+    #  asks the connection to return Row objects instead of tuples
+    con.row_factory = sqlite3.Row
     cur = con.cursor()
 
-    res = cur.execute("SELECT * FROM data")
-    # print([element[0] for element in res.description]) # this gives table column names
-    res = res.fetchall()
-    con.close()
-    return res
+    if isinstance(id, int):
+        row = cur.execute("SELECT * FROM data WHERE id = ?", (id,))
+        # print([element[0] for element in res.description]) # this gives table column names
+        row = row.fetchall()
+        con.close()
+        assert len(row) == 1
+        row = row[0]  # there is only one row anyway
+        assert id == row["id"]
+
+        # TODO: can i automate this based on the db schema?
+        return TrainPoint(id=id, a=row["a"])
 
 
 @define
@@ -44,8 +60,8 @@ class TrainPoint:
 
     id: int = field(validator=validators.instance_of(int))
     a: np.ndarray = field(validator=validators.instance_of(np.ndarray))
-    encoded: Latent
-    bb: Blackbox
+    # encoded: Latent
+    # bb: Blackbox
 
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -108,17 +124,36 @@ cur.execute("create table test (arr array)")
 
 
 if __name__ == "__main__":
+    console = Console()
     sqlite3.register_adapter(np.ndarray, _adapt_array)
     sqlite3.register_converter("array", _convert_array)
 
+    # delete create table and commit to db a trainpoint
     _delete_create_table()
     mu = np.array(((4, 5), (1, 2)))
-    miao = TrainPoint(10, mu, mu, True)
+    miao = TrainPoint(10, mu)
     miao.save()
 
-    print("[red]Values:[/]")
-    for i, value in enumerate(load(0)[0]):
-        print(f"{i}: {value} {type(value)}")
+    # visualization
+    table = Table(title="TrainPoint schema")
+    table.add_column("attribute", style="cyan", no_wrap=True)
+    table.add_column("dType", style="magenta")
+    for attribute in [
+        a
+        for a in dir(load(10))
+        if not a.startswith("__") and not callable(getattr(load(10), a))
+    ]:
+        table.add_row(f"{attribute}", f"{type(attribute)}")
+    console.print(table)
+    print(f"[red]Example:[/] {load(10)} {type(load(10))}")
+
+    # understanding the explanation file
+
+    with open("./data/aemodels/mnist/aae/explanation/156.pickle", "rb") as f:
+        element = pickle.load(f)
+
+    print(element)
+    print(type(element))
 
 """
 con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)

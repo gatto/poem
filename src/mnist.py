@@ -4,6 +4,7 @@ current_user = user_names[0]
 
 import json
 import logging
+import pickle
 import random
 import sys
 import warnings
@@ -447,11 +448,11 @@ if run_options == "explain":
         "bb_pred": exp.bb_pred,
         "dt_pred": exp.dt_pred,
         "fidelity": exp.fidelity,
-        "limg": exp.limg
+        "limg": exp.limg,
     }
 
-    with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.json", "w") as f:
-        f.write("%s\n" % json.dumps(tosave, sort_keys=True, indent=4))
+    with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
+        pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # xxx continue checking from here
     task = "get_counterfactual_prototypes"
