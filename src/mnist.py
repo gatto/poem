@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import requests
 import tensorflow as tf
+# from oab import TrainPoint
 from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
 from keras.preprocessing.image import ImageDataGenerator
@@ -547,5 +548,5 @@ if run_options == "explain":
     )
     # plt.show()
 
-    notify_task(current_user, False, task="explanation")
+    notify_task(current_user, True, task="explanation")
 # end explain an image
