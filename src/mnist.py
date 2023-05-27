@@ -468,7 +468,10 @@ if run_options == "explain":
         prototypes = exp.get_prototypes_respecting_rule(num_prototypes=3)
         for pimg in prototypes:
             bbo = bb_predict(np.array([pimg]))[0]
-            plt.imshow(pimg)
+            if use_rgb:
+                plt.imshow(pimg)
+            else:
+                plt.imshow(pimg.astype('uint8'), cmap='gray')
             plt.title("prototype %s" % bbo)
             plt.savefig(
                 "./data/aemodels/mnist/aae/explanation/prototypes_%s_%s.png"
