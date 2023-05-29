@@ -13,7 +13,6 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
-
 try:
     run_options = sys.argv[1]
 except IndexError:
@@ -33,6 +32,7 @@ from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
 from keras.preprocessing.image import ImageDataGenerator
 from oriexputil import get_autoencoder, get_black_box, train_black_box
+from parameters import *
 from rich import print
 from rich.console import Console
 from rich.progress import track
@@ -84,13 +84,7 @@ logger = logging.getLogger()
 console = Console()
 
 
-# Setting general variables
 logger.setLevel(logging.INFO)
-
-random_state = 0
-dataset = "mnist"
-black_box = "RF"
-use_rgb = False  # g with mnist dataset
 
 
 gpus = tf.config.list_physical_devices("GPU")
@@ -122,170 +116,54 @@ if run_options == "delete-all":
     empty_folder("./data/results/bb")
     exit(0)
 
+
 # # Build Dataset
+def get_data(dataset="mnist"):
+    # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
+    console.print("Loading dataset")
 
-# Load X_train, Y_train, X_test, Y_test from mnist keras dataset
-console.print("Loading dataset")
+    # 2 different alternatives:
+    """
+    # carlo:
+    (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
+    X_train = np.expand_dims(X_train, 3)
+    X_test = np.expand_dims(X_test, 3)
+    """
+    # for grayscale:
+    (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
+    X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
+    X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 
-# 2 different alternatives:
-"""
-# carlo:
-(X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-X_train = np.expand_dims(X_train, 3)
-X_test = np.expand_dims(X_test, 3)
-"""
-# for grayscale:
-(X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
-X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
+    # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+    random.seed("gattonemiao")
+    indexes = random.sample(
+        range(X_train.shape[0]), X_train.shape[0] // 6
+    )  # g get a list of 1/6 indexes of the len of X_train
 
-# Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-random.seed("gattonemiao")
-indexes = random.sample(
-    range(X_train.shape[0]), X_train.shape[0] // 6
-)  # g get a list of 1/6 indexes of the len of X_train
+    indexing_condition = []
+    for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
+        if x in indexes:
+            indexing_condition.append(True)
+        else:
+            indexing_condition.append(False)
+    assert len(indexing_condition) == X_train.shape[0]
 
-indexing_condition = []
-for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
-    if x in indexes:
-        indexing_condition.append(True)
-    else:
-        indexing_condition.append(False)
-assert len(indexing_condition) == X_train.shape[0]
-
-logging.info(
-    f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
-)
-
-indexing_condition = np.array(indexing_condition)
-
-X_tree = X_train[indexing_condition]
-Y_tree = Y_train[indexing_condition]
-
-X_train = X_train[~indexing_condition]
-Y_train = Y_train[~indexing_condition]
-
-# TODO: save dataset to file
-
-# # Load Dataset
-
-# TODO: load dataset from csv
-
-# # Data understanding
-if run_options == "understanding":
-    console.print("Data understanding")
-    print(f"X_train[18][18]: {X_train[18][18]}")
-    print(f"X_tree[18][18]: {X_tree[18][18]}")  # g they different
-
-table = Table(title="Datasets")
-table.add_column("Name", style="cyan", no_wrap=True)
-table.add_column("dType", style="magenta")
-table.add_column("shape", style="magenta")
-datasets = ["X_train", "X_test", "X_tree", "Y_train", "Y_test", "Y_tree"]
-for dataset_name in datasets:
-    variable = globals()[dataset_name]
-    table.add_row(f"{dataset_name}", f"{type(variable)}", f"{variable.shape}")
-console.print(table)
-
-# # Training autoencoder
-if run_options == "train-aae":
-    ae_name = "aae"
-    batch_size = 256
-    sample_interval = 200
-
-    epochs = 10000  # g time intensive
-
-    path_aemodels = f"data/aemodels/{dataset}/{ae_name}/"
-
-    ae = get_autoencoder(X_train, ae_name, dataset, path_aemodels)
-
-    ae.fit(
-        X_train, epochs=epochs, batch_size=batch_size, sample_interval=sample_interval
-    )
-    ae.save_model()
-    ae.sample_images(epochs)
-
-    notify_task(current_user, False, task="autoencoder")
-
-    # # Testing autoencoder with rmse (xxx check with Carlo)
-    ae = get_autoencoder(
-        X_test, ae_name, dataset, path_aemodels
-    )  # g this sets up the autoencoder but does not fit it
-    ae.load_model()
-    X_train_ae = ae.decode(ae.encode(X_train))
-    X_test_ae = ae.decode(ae.encode(X_test))
-
-    table = Table(title=f"Evaluation encoder over {dataset} dataset")
-    table.add_column("Series", style="cyan", no_wrap=True)
-    table.add_column("mean", style="dark_blue")
-    table.add_column("RMSE", style="magenta")
-    table.add_column("min", style="green")
-    table.add_column("max", style="red")
-
-    table.add_row("train rmse", "", f"{round(rmse(X_train, X_train_ae), 4)}", "", "")
-    table.add_section()
-    table.add_row("test rmse", "", f"{round(rmse(X_test, X_test_ae), 4)}", "", "")
-    table.add_row(
-        "X_test",
-        f"{round(np.mean(X_test), 4)}",
-        "",
-        f"{np.min(X_test)}",
-        f"{np.max(X_test)}",
-    )
-    table.add_row(
-        "X_test_ae",
-        f"{round(np.mean(X_test_ae), 4)}",
-        "",
-        f"{np.min(X_test_ae)}",
-        f"{np.max(X_test_ae)}",
-    )
-    table.add_row(
-        "X_test - X_test_ae",
-        f"{round(np.mean(X_test) - np.mean(X_test_ae), 4)}",
-        "",
-        f"{round(np.min(X_test) - np.min(X_test_ae), 4)}",
-        f"{round(np.max(X_test) - np.max(X_test_ae), 4)}",
+    logging.info(
+        f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
     )
 
-    console.print(table)
-# end train autoencoder
+    indexing_condition = np.array(indexing_condition)
 
-# Black box training (xxx this was with fashion dataset, does it work with mnist?)
-if run_options == "train-bb":
-    print(f"{black_box} black box training on {dataset} with use_rgb: {use_rgb}")
-    print(f"X_train.shape: {X_train.shape}")
-    print(f"X_test.shape: {X_test.shape}")
+    X_tree = X_train[indexing_condition]
+    Y_tree = Y_train[indexing_condition]
 
-    path = "./"
-    path_models = path + "data/models/"
-    path_results = path + "data/results/bb/"
+    X_train = X_train[~indexing_condition]
+    Y_train = Y_train[~indexing_condition]
 
-    black_box_filename = path_models + "%s_%s" % (dataset, black_box)
-    results_filename = path_results + "%s_%s.json" % (dataset, black_box)
+    return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
-    train_black_box(
-        X_train, Y_train, dataset, black_box, black_box_filename, use_rgb, random_state
-    )  # g this fits and saves bb to disk
-    bb_predict, bb_predict_proba = get_black_box(
-        black_box, black_box_filename, use_rgb
-    )  # g this loads bb to disk and returns 2 functs
 
-    Y_pred = bb_predict(X_test)
-
-    acc = accuracy_score(Y_test, Y_pred)
-    cr = classification_report(Y_test, Y_pred)
-    print("Accuracy: %.4f" % acc)
-    print("Classification Report")
-    print(cr)
-    cr = classification_report(Y_test, Y_pred, output_dict=True)
-    res = {"dataset": dataset, "black_box": black_box, "accuracy": acc, "report": cr}
-    results = open(results_filename, "w")
-    results.write("%s\n" % json.dumps(res, sort_keys=True, indent=4))
-    results.close()
-# end black box training
-
-# explain an image
-if run_options == "explain":
+def run_explain(index_tr:int, X_train, Y_train, X_test, Y_test, X_tree, Y_tree) -> None:
     NUM_TRAIN_IMAGES = len(X_train)
     NUM_TEST_IMAGES = len(X_test)
     NUM_IMAGES = NUM_TRAIN_IMAGES + NUM_TEST_IMAGES
@@ -389,10 +267,6 @@ if run_options == "explain":
     )  # was next(trainGen) instead of X_train (xxx X_test or X_train?)
     ae.load_model()
 
-    try:
-        index_tr = sys.argv[2]
-    except IndexError:
-        index_tr = 156
     console.print(f"explaining image #{index_tr} from [red]test[/] set")
     img = X_test[index_tr]
     plt.imshow(img)
@@ -453,6 +327,7 @@ if run_options == "explain":
 
     with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
+    exit(0)  # xxx this will change probably?
 
     # xxx continue checking from here
     task = "get_counterfactual_prototypes"
@@ -472,7 +347,7 @@ if run_options == "explain":
             # plt.show()
             cont = cont + 1
     except:
-        notify_task(task, False, current_user)
+        notify_task(current_user, good=False, task=task)
         exit(1)
     print(f"I made #{cont} {task}.")
 
@@ -496,7 +371,7 @@ if run_options == "explain":
             # plt.show()
             cont = cont + 1
     except:
-        notify_task(current_user, False, task)
+        notify_task(current_user, good=False, task=task)
         exit(1)
     print(f"I made #{cont} {task}.")
 
@@ -510,7 +385,7 @@ if run_options == "explain":
         plt.title("image to explain - black box %s" % bbo)
         plt.savefig("./data/aemodels/mnist/aae/explanation/get_image_rule.png", dpi=150)
     except:
-        notify_task(current_user, False, task)
+        notify_task(current_user, good=False, task=task)
         exit(1)
 
     # g and wat tis
@@ -525,7 +400,7 @@ if run_options == "explain":
         cmap_xi = plt.get_cmap("Greys_r")
         cmap_xi.set_bad(alpha=0)
     except:
-        notify_task(current_user, False, task)
+        notify_task(current_user, good=False, task=task)
         exit(1)
 
     task = "math2"
@@ -548,7 +423,7 @@ if run_options == "explain":
         edges[:, -5:] = np.nan
         overlay = edges
     except:
-        notify_task(current_user, False, task)
+        notify_task(current_user, good=False, task=task)
         exit(1)
 
     print("plot")
@@ -562,5 +437,142 @@ if run_options == "explain":
     )
     # plt.show()
 
-    notify_task(current_user, True, task="explanation")
+    notify_task(current_user, good=True, task="explanation")
+
+
+# TODO: save dataset to file
+
+# # Load Dataset
+
+# TODO: load dataset from csv
+
+# # Data understanding
+if run_options == "understanding":
+    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
+    console.print("Data understanding")
+    # print(f"X_train[18][18]: {X_train[18][18]}")
+    # print(f"X_tree[18][18]: {X_tree[18][18]}")  # g they different
+
+    table = Table(title="Datasets")
+    table.add_column("Name", style="cyan", no_wrap=True)
+    table.add_column("dType", style="magenta")
+    table.add_column("shape", style="magenta")
+    datasets = ["X_train", "X_test", "X_tree", "Y_train", "Y_test", "Y_tree"]
+    for dataset_name in datasets:
+        variable = globals()[dataset_name]
+        table.add_row(f"{dataset_name}", f"{type(variable)}", f"{variable.shape}")
+    console.print(table)
+
+# # Training autoencoder
+if run_options == "train-aae":
+    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
+    ae_name = "aae"
+    batch_size = 256
+    sample_interval = 200
+
+    epochs = 10000  # g time intensive
+
+    path_aemodels = f"data/aemodels/{dataset}/{ae_name}/"
+
+    ae = get_autoencoder(X_train, ae_name, dataset, path_aemodels)
+
+    ae.fit(
+        X_train, epochs=epochs, batch_size=batch_size, sample_interval=sample_interval
+    )
+    ae.save_model()
+    ae.sample_images(epochs)
+
+    notify_task(current_user, good=True, task=run_options)
+
+    # # Testing autoencoder with rmse (xxx check with Carlo)
+    ae = get_autoencoder(
+        X_test, ae_name, dataset, path_aemodels
+    )  # g this sets up the autoencoder but does not fit it
+    ae.load_model()
+    X_train_ae = ae.decode(ae.encode(X_train))
+    X_test_ae = ae.decode(ae.encode(X_test))
+
+    table = Table(title=f"Evaluation encoder over {dataset} dataset")
+    table.add_column("Series", style="cyan", no_wrap=True)
+    table.add_column("mean", style="dark_blue")
+    table.add_column("RMSE", style="magenta")
+    table.add_column("min", style="green")
+    table.add_column("max", style="red")
+
+    table.add_row("train rmse", "", f"{round(rmse(X_train, X_train_ae), 4)}", "", "")
+    table.add_section()
+    table.add_row("test rmse", "", f"{round(rmse(X_test, X_test_ae), 4)}", "", "")
+    table.add_row(
+        "X_test",
+        f"{round(np.mean(X_test), 4)}",
+        "",
+        f"{np.min(X_test)}",
+        f"{np.max(X_test)}",
+    )
+    table.add_row(
+        "X_test_ae",
+        f"{round(np.mean(X_test_ae), 4)}",
+        "",
+        f"{np.min(X_test_ae)}",
+        f"{np.max(X_test_ae)}",
+    )
+    table.add_row(
+        "X_test - X_test_ae",
+        f"{round(np.mean(X_test) - np.mean(X_test_ae), 4)}",
+        "",
+        f"{round(np.min(X_test) - np.min(X_test_ae), 4)}",
+        f"{round(np.max(X_test) - np.max(X_test_ae), 4)}",
+    )
+
+    console.print(table)
+# end train autoencoder
+
+# Black box training (xxx this was with fashion dataset, does it work with mnist?)
+if run_options == "train-bb":
+    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
+    print(f"{black_box} black box training on {dataset} with use_rgb: {use_rgb}")
+    print(f"X_train.shape: {X_train.shape}")
+    print(f"X_test.shape: {X_test.shape}")
+
+    path = "./"
+    path_models = path + "data/models/"
+    path_results = path + "data/results/bb/"
+
+    black_box_filename = path_models + "%s_%s" % (dataset, black_box)
+    results_filename = path_results + "%s_%s.json" % (dataset, black_box)
+
+    train_black_box(
+        X_train, Y_train, dataset, black_box, black_box_filename, use_rgb, random_state
+    )  # g this fits and saves bb to disk
+    bb_predict, bb_predict_proba = get_black_box(
+        black_box, black_box_filename, use_rgb
+    )  # g this loads bb to disk and returns 2 functs
+
+    Y_pred = bb_predict(X_test)
+
+    acc = accuracy_score(Y_test, Y_pred)
+    cr = classification_report(Y_test, Y_pred)
+    print("Accuracy: %.4f" % acc)
+    print("Classification Report")
+    print(cr)
+    cr = classification_report(Y_test, Y_pred, output_dict=True)
+    res = {"dataset": dataset, "black_box": black_box, "accuracy": acc, "report": cr}
+    results = open(results_filename, "w")
+    results.write("%s\n" % json.dumps(res, sort_keys=True, indent=4))
+    results.close()
+# end black box training
+
+# explain an image
+if run_options == "explain":
+    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
+    try:
+        index_tr = sys.argv[2]
+    except IndexError:
+        index_tr = 156
+
+    run_explain(index_tr, X_train, Y_train, X_test, Y_test, X_tree, Y_tree)
 # end explain an image

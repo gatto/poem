@@ -1,11 +1,12 @@
 import io
-import json
 import pickle
 import sqlite3
+import sys
 from pathlib import Path
 
 import numpy as np
 from attrs import define, field, validators
+from mnist import get_data, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
@@ -124,36 +125,64 @@ cur.execute("create table test (arr array)")
 
 
 if __name__ == "__main__":
+    """
+    This should train the offline system
+    1. explain each of the data points in tree_set
+    2. save them as TrainPoint
+    we have a sqlite populated with trainpoints.
+    """
+    try:
+        run_options = sys.argv[1]
+    except IndexError:
+        run_options = None
+
     console = Console()
     sqlite3.register_adapter(np.ndarray, _adapt_array)
     sqlite3.register_converter("array", _convert_array)
 
-    # delete create table and commit to db a trainpoint
-    _delete_create_table()
-    mu = np.array(((4, 5), (1, 2)))
-    miao = TrainPoint(10, mu)
-    miao.save()
+    if run_options == "delete_all":
+        # delete create table
+        _delete_create_table()
+        print(f"done {run_options}")
+        exit(0)
+    elif run_options == "run_tests":
+        miao = TrainPoint(156, np.array(([4, 5], [1, 2])))
+        miao.save()
 
-    # visualization
-    table = Table(title="TrainPoint schema")
-    table.add_column("attribute", style="cyan", no_wrap=True)
-    table.add_column("dType", style="magenta")
-    for attribute in [
-        a
-        for a in dir(load(10))
-        if not a.startswith("__") and not callable(getattr(load(10), a))
-    ]:
-        table.add_row(f"{attribute}", f"{type(attribute)}")
-    console.print(table)
-    print(f"[red]Example:[/] {load(10)} {type(load(10))}")
+        # visualization
+        table = Table(title="TrainPoint schema")
+        table.add_column("attribute", style="cyan", no_wrap=True)
+        table.add_column("dType", style="magenta")
+        for attribute in [
+            a
+            for a in dir(load(156))
+            if not a.startswith("__") and not callable(getattr(load(10), a))
+        ]:
+            table.add_row(f"{attribute}", f"{type(attribute)}")
+        console.print(table)
+        print(f"[red]Example:[/] {load(156)} {type(load(156))}")
+    elif run_options == "run":
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
-    # understanding the explanation file
+        # only for test purposes
+        X_tree = X_tree[:5]
+        Y_tree = Y_tree[:5]
 
-    with open("./data/aemodels/mnist/aae/explanation/156.pickle", "rb") as f:
-        element = pickle.load(f)
+        for i, point in enumerate(X_tree):
+            miao = TrainPoint(i, point)
+            miao.save()
 
-    print(element)
-    print(type(element))
+        print(load(0))
+        print(load(1))
+        print(load(2))
+        print(load(3))
+        print(load(4))
+
+        # understanding the explanation file
+        with open("./data/aemodels/mnist/aae/explanation/156.pickle", "rb") as f:
+            element = pickle.load(f)
+        print(element)
+        print(type(element))
 
 """
 con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
