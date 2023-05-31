@@ -3,6 +3,7 @@ import pickle
 import sqlite3
 import sys
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 from attrs import define, field, validators
@@ -16,28 +17,6 @@ data_table_structure = ("id int", "a array")
 data_path = Path("./data")
 data_table_path = data_path / "tutorial.db"
 
-
-def load(id: int):
-    """
-    Loads a TrainPoint if you pass an id:int
-    Loads a set of TrainPoint if you pass an id: collection
-    """
-    con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-    #  asks the connection to return Row objects instead of tuples
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
-
-    if isinstance(id, int):
-        row = cur.execute("SELECT * FROM data WHERE id = ?", (id,))
-        # print([element[0] for element in res.description]) # this gives table column names
-        row = row.fetchall()
-        con.close()
-        assert len(row) == 1
-        row = row[0]  # there is only one row anyway
-        assert id == row["id"]
-
-        # TODO: can i automate this based on the db schema?
-        return TrainPoint(id=id, a=row["a"])
 
 
 @define
@@ -74,6 +53,29 @@ class TrainPoint:
         con.close()
 
 
+def load(id: int) -> None | TrainPoint:
+    """
+    Loads a TrainPoint if you pass an id:int
+    Loads a set of TrainPoint if you pass an id: collection
+    """
+    con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
+    #  asks the connection to return Row objects instead of tuples
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+
+    if isinstance(id, int):
+        row = cur.execute("SELECT * FROM data WHERE id = ?", (id,))
+        # print([element[0] for element in res.description]) # this gives table column names
+        row = row.fetchall()
+        con.close()
+        assert len(row) == 1
+        row = row[0]  # there is only one row anyway
+        assert id == row["id"]
+
+        # TODO: can i automate this based on the db schema?
+        return TrainPoint(id=id, a=row["a"])
+
+
 def _data_table_structure_query() -> str:
     my_query = "("
     for column in data_table_structure:
@@ -89,7 +91,7 @@ def _connect():
     # return cur
 
 
-def _delete_create_table():
+def _delete_create_table() -> None:
     data_table_path.unlink(missing_ok=True)
 
     data_table_string = "("
@@ -161,12 +163,13 @@ if __name__ == "__main__":
             table.add_row(f"{attribute}", f"{type(attribute)}")
         console.print(table)
         print(f"[red]Example:[/] {load(156)} {type(load(156))}")
-    elif run_options == "run":
+    elif run_options in ("run", "trun"):  # trun is "test run" and should be used until real run
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
-        # only for test purposes
-        X_tree = X_tree[:5]
-        Y_tree = Y_tree[:5]
+        if run_options == "trun":
+            # only for test purposes
+            X_tree = X_tree[:5]
+            Y_tree = Y_tree[:5]
 
         for i, point in enumerate(X_tree):
             miao = TrainPoint(i, point)
