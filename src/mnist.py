@@ -126,24 +126,20 @@ def get_data(dataset: str = "mnist") -> tuple:
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
 
-def run_explain(
-    index_tr: int,
-    X_train: np.ndarray,
-    Y_train: np.ndarray,
-    X_test: np.ndarray,
-    Y_test: np.ndarray,
-    X_tree: np.ndarray,
-    Y_tree: np.ndarray,
-) -> None:
+def run_explain(index_tr: int) -> None:
+    """
+    This should, at some point, return what I need
+    i.e. the ILORE decision tree
+    possibly together with the `tosave` dict
+    """
+    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
     NUM_TRAIN_IMAGES = len(X_train)
     NUM_TEST_IMAGES = len(X_test)
     NUM_IMAGES = NUM_TRAIN_IMAGES + NUM_TEST_IMAGES
     print(f"We have {NUM_IMAGES} images")
 
-    batch_size = 64
-    epochs = 10000  # was 10k
     class_values = ["%s" % i for i in range(len(np.unique(Y_test)))]
-    num_classes = len(class_values)
     print(f"Classes are: {class_values}")
 
     """
@@ -298,6 +294,12 @@ def run_explain(
 
     with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # this is temporary like the exit(0)
+    notify_task(current_user, good=True, task=f"explanation of {index_tr}")
+
+    return tosave
+
     exit(0)  # xxx this will change probably?
 
     # xxx continue checking from here
@@ -417,6 +419,25 @@ def run_explain(
 
 # TODO: load dataset from csv
 
+# user setup
+if current_user == "Carlo":
+    # !pip install deap
+
+    from google.colab import drive
+
+    drive.mount("/content/gdrive")
+    if (
+        "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
+        not in sys.path
+    ):
+        sys.path.append(
+            "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
+        )
+if current_user == "Fabio":
+    import tg_api_key
+logging.info(f"✅ Setup for {current_user} done.")
+
+
 if __name__ == "__main__":
     logger = logging.getLogger()
     console = Console()
@@ -428,23 +449,6 @@ if __name__ == "__main__":
     if len(gpus) > 1:
         logging.info("the code is not optimized for more than 1 gpu")
 
-    if current_user == "Carlo":
-        # !pip install deap
-
-        from google.colab import drive
-
-        drive.mount("/content/gdrive")
-        if (
-            "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
-            not in sys.path
-        ):
-            sys.path.append(
-                "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
-            )
-    if current_user == "Fabio":
-        import tg_api_key
-    logging.info(f"✅ Setup for {current_user} done.")
-
     if run_options == "delete-all":
         # Only run if you want this to start over, or you are running this for the first time to create the data folders.
         # g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
@@ -452,12 +456,12 @@ if __name__ == "__main__":
         empty_folder("./data/aemodels/mnist/aae")
         empty_folder("./data/models")
         empty_folder("./data/results/bb")
-
-    # ok, we need the data then.
-    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+        exit(0)
 
     # # Data understanding
     if run_options == "understanding":
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
         print("Data understanding")
         # print(f"X_train[18][18]: {X_train[18][18]}")
         # print(f"X_tree[18][18]: {X_tree[18][18]}")  # g they different
@@ -474,6 +478,8 @@ if __name__ == "__main__":
 
     # Training autoencoder
     elif run_options == "train-aae":
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
         ae_name = "aae"
         batch_size = 256
         sample_interval = 200
@@ -541,6 +547,8 @@ if __name__ == "__main__":
 
     # Black box training (xxx this was with fashion dataset, does it work with mnist?)
     elif run_options == "train-bb":
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
         print(f"{black_box} black box training on {dataset} with use_rgb: {use_rgb}")
         print(f"X_train.shape: {X_train.shape}")
         print(f"X_test.shape: {X_test.shape}")
@@ -591,5 +599,5 @@ if __name__ == "__main__":
         except IndexError:
             index_tr = 156
 
-        run_explain(index_tr, X_train, Y_train, X_test, Y_test, X_tree, Y_tree)
+        run_explain(index_tr)
     # end explain an image

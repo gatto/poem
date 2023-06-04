@@ -3,7 +3,6 @@ import pickle
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 from attrs import define, field, validators
@@ -15,8 +14,7 @@ from rich.table import Table
 data_table_structure = ("id int", "a array")
 
 data_path = Path("./data")
-data_table_path = data_path / "tutorial.db"
-
+data_table_path = data_path / "treepoints.db"
 
 
 @define
@@ -33,13 +31,16 @@ class Blackbox:
 
 
 @define
-class TrainPoint:
+class TreePoint:
     """
     TrainPoint.a is the original array in real space
     """
 
     id: int = field(validator=validators.instance_of(int))
-    a: np.ndarray = field(validator=validators.instance_of(np.ndarray))
+    a: np.ndarray = field(
+        validator=validators.instance_of(np.ndarray),
+        repr=lambda value: f"{type(value)}",
+    )
     # encoded: Latent
     # bb: Blackbox
 
@@ -53,27 +54,49 @@ class TrainPoint:
         con.close()
 
 
-def load(id: int) -> None | TrainPoint:
+def list_all() -> list[int]:
+    """
+    Returns a tuple of TreePoint ids that are in the db.
+    """
+    con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
+    con.row_factory = sqlite3.Row
+    cur = con.cursor()
+
+    rows = cur.execute("SELECT id FROM data")
+    rows = rows.fetchall()
+    con.close()
+    return sorted([x["id"] for x in rows])
+
+
+def load(id: int) -> None | TreePoint:
     """
     Loads a TrainPoint if you pass an id:int
     Loads a set of TrainPoint if you pass an id: collection
     """
-    con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-    #  asks the connection to return Row objects instead of tuples
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
-
     if isinstance(id, int):
+        con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+
         row = cur.execute("SELECT * FROM data WHERE id = ?", (id,))
         # print([element[0] for element in res.description]) # this gives table column names
         row = row.fetchall()
         con.close()
-        assert len(row) == 1
-        row = row[0]  # there is only one row anyway
-        assert id == row["id"]
 
-        # TODO: can i automate this based on the db schema?
-        return TrainPoint(id=id, a=row["a"])
+        if len(row) == 0:
+            return None
+        elif len(row) > 1:
+            raise Exception(
+                f"the id {id} is supposed to be unique but it's not in this database"
+            )
+        else:
+            row = row[0]  # there is only one row anyway
+            assert id == row["id"]
+
+            # TODO: can i automate this based on the db schema?
+            return TreePoint(id=id, a=row["a"])
+    else:
+        raise ValueError(f"id was not an int: {id}")
 
 
 def _data_table_structure_query() -> str:
@@ -98,11 +121,12 @@ def _delete_create_table() -> None:
     for column in data_table_structure:
         data_table_string = f"{data_table_string}{column}, "
     data_table_string = f"{data_table_string[:-2]})"
-    # must be smth like "CREATE TABLE data(id, original array)"
 
     con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
     cur = con.cursor()
+
     cur.execute(f"CREATE TABLE data{data_table_string}")
+    # must be smth like "CREATE TABLE data(id, original array)"
     con.close()
 
 
@@ -125,6 +149,10 @@ cur = con.cursor()
 cur.execute("create table test (arr array)")
 """
 
+console = Console()
+sqlite3.register_adapter(np.ndarray, _adapt_array)
+sqlite3.register_converter("array", _convert_array)
+
 
 if __name__ == "__main__":
     """
@@ -138,17 +166,13 @@ if __name__ == "__main__":
     except IndexError:
         run_options = None
 
-    console = Console()
-    sqlite3.register_adapter(np.ndarray, _adapt_array)
-    sqlite3.register_converter("array", _convert_array)
-
-    if run_options == "delete_all":
+    if run_options == "delete-all":
         # delete create table
         _delete_create_table()
         print(f"done {run_options}")
-        exit(0)
-    elif run_options == "run_tests":
-        miao = TrainPoint(156, np.array(([4, 5], [1, 2])))
+    elif run_options == "run-tests":
+        _delete_create_table()
+        miao = TreePoint(156, np.array(([4, 5], [1, 2])))
         miao.save()
 
         # visualization
@@ -158,34 +182,48 @@ if __name__ == "__main__":
         for attribute in [
             a
             for a in dir(load(156))
-            if not a.startswith("__") and not callable(getattr(load(10), a))
+            if not a.startswith("__") and not callable(getattr(load(156), a))
         ]:
             table.add_row(f"{attribute}", f"{type(attribute)}")
         console.print(table)
-        print(f"[red]Example:[/] {load(156)} {type(load(156))}")
-    elif run_options in ("run", "trun"):  # trun is "test run" and should be used until real run
+        print(f"[red]Example:[/] {load(156)}")
+    elif run_options in (
+        "run",
+        "trun",
+    ):  # trun is "test run" and should be used until real run
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
         if run_options == "trun":
             # only for test purposes
-            X_tree = X_tree[:5]
-            Y_tree = Y_tree[:5]
+            X_tree = X_tree[:2]
+            Y_tree = Y_tree[:2]
 
         for i, point in enumerate(X_tree):
-            miao = TrainPoint(i, point)
+            try:
+                with open(
+                    data_path / f"aemodels/mnist/aae/explanation/{i}.pickle", "rb"
+                ) as f:
+                    tosave = pickle.load(f)
+            except FileNotFoundError:
+                tosave = run_explain(i)
+
+            miao = TreePoint(i, point)
             miao.save()
 
-        print(load(0))
-        print(load(1))
-        print(load(2))
-        print(load(3))
-        print(load(4))
-
-        # understanding the explanation file
-        with open("./data/aemodels/mnist/aae/explanation/156.pickle", "rb") as f:
-            element = pickle.load(f)
-        print(element)
-        print(type(element))
+        if run_options == "trun":
+            # only for test purposes
+            print(load(0))
+            print(load(1))
+    elif run_options == "list":
+        all_records = list_all()
+        if all_records:
+            print(all_records)
+        else:
+            print("[red]No records")
+    elif run_options == "explain":
+        # this should allow the upload of a new data point
+        # and explain it
+        pass
 
 """
 con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
