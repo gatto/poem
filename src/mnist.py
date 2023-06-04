@@ -426,10 +426,7 @@ if current_user == "Carlo":
     from google.colab import drive
 
     drive.mount("/content/gdrive")
-    if (
-        "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
-        not in sys.path
-    ):
+    if "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/" not in sys.path:
         sys.path.append(
             "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
         )

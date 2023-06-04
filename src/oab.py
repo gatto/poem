@@ -11,7 +11,7 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 
-data_table_structure = ("id int", "a array")
+data_table_structure = ("id int", "a array", "encoded array")
 
 data_path = Path("./data")
 data_table_path = data_path / "treepoints.db"
@@ -19,8 +19,11 @@ data_table_path = data_path / "treepoints.db"
 
 @define
 class Latent:
-    a: np.ndarray  # record in latent space
-    space: bool
+    a: np.ndarray = field(
+        validator=validators.instance_of(np.ndarray),
+        repr=lambda value: f"{type(value)}",
+    )  # record in latent space
+    # space: bool
 
 
 @define
@@ -41,14 +44,14 @@ class TreePoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
-    # encoded: Latent
+    encoded: Latent
     # bb: Blackbox
 
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
         cur = con.cursor()
 
-        data = (self.id, self.a)
+        data = (self.id, self.a, self.encoded.a)
         cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
         con.commit()
         con.close()
@@ -94,12 +97,19 @@ def load(id: int) -> None | TreePoint:
             assert id == row["id"]
 
             # TODO: can i automate this based on the db schema?
-            return TreePoint(id=id, a=row["a"])
+            return TreePoint(
+                id=id,
+                a=row["a"],
+                encoded=Latent(a=row["encoded"]),
+            )
     else:
         raise ValueError(f"id was not an int: {id}")
 
 
 def _data_table_structure_query() -> str:
+    """
+    creates the table structure query for data INSERT
+    """
     my_query = "("
     for column in data_table_structure:
         my_query = f"{my_query}?, "
@@ -207,7 +217,12 @@ if __name__ == "__main__":
             except FileNotFoundError:
                 tosave = run_explain(i)
 
-            miao = TreePoint(i, point)
+            # the following creates the actual data point
+            miao = TreePoint(
+                id=i,
+                a=point,
+                encoded=Latent(a=tosave["limg"]),
+            )
             miao.save()
 
         if run_options == "trun":
