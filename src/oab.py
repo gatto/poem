@@ -18,6 +18,16 @@ data_table_path = data_path / "treepoints.db"
 
 
 @define
+class Domain:
+    classes: list[str]
+
+
+@define
+class LatentDT:
+    predicted_class: int  # index of classes, refers to Domain.classes
+
+
+@define
 class Latent:
     a: np.ndarray = field(
         validator=validators.instance_of(np.ndarray),
@@ -28,9 +38,7 @@ class Latent:
 
 @define
 class Blackbox:
-    classes: list[str]
-    true_class: str  # or int? index of classes
-    predicted_class: str  # or int? index of classes
+    predicted_class: int  # index of classes, refers to Domain.classes
 
 
 @define
@@ -46,6 +54,8 @@ class TreePoint:
     )
     encoded: Latent
     # bb: Blackbox
+    # true_class: int  # index of classes, refers to Domain.classes
+
 
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -55,6 +65,13 @@ class TreePoint:
         cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
         con.commit()
         con.close()
+
+
+@define
+class Explainer:
+    """
+    this is what oab.py returns when you ask an explanation
+    """
 
 
 def list_all() -> list[int]:
@@ -104,6 +121,10 @@ def load(id: int) -> None | TreePoint:
             )
     else:
         raise ValueError(f"id was not an int: {id}")
+
+
+def explain(my_path: Path) -> Explainer:
+    pass
 
 
 def _data_table_structure_query() -> str:
@@ -174,7 +195,11 @@ if __name__ == "__main__":
     try:
         run_options = sys.argv[1]
     except IndexError:
-        run_options = None
+        raise Exception(
+            """possible runtime arguments are:\n
+            (testing) delete-all, run-tests, test-train,\n
+            (production) train, list, explain <path of img to explain>"""
+        )
 
     if run_options == "delete-all":
         # delete create table
@@ -198,12 +223,12 @@ if __name__ == "__main__":
         console.print(table)
         print(f"[red]Example:[/] {load(156)}")
     elif run_options in (
-        "run",
-        "trun",
-    ):  # trun is "test run" and should be used until real run
+        "train",
+        "test-train",
+    ):  # test-train should be used until real train run
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
-        if run_options == "trun":
+        if run_options == "test-train":
             # only for test purposes
             X_tree = X_tree[:2]
             Y_tree = Y_tree[:2]
@@ -225,7 +250,7 @@ if __name__ == "__main__":
             )
             miao.save()
 
-        if run_options == "trun":
+        if run_options == "test-train":
             # only for test purposes
             print(load(0))
             print(load(1))
@@ -233,12 +258,14 @@ if __name__ == "__main__":
         all_records = list_all()
         if all_records:
             print(all_records)
+            print(f"We have {len(all_records)} TreePoints in the database.")
         else:
             print("[red]No records")
     elif run_options == "explain":
         # this should allow the upload of a new data point
         # and explain it
-        pass
+        # miao = explain(Path"something something")
+        # print(miao)
 
 """
 con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
