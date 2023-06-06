@@ -22,6 +22,14 @@ if __name__ == "__main__":
             understanding, delete-all, train-aae, train-bb, explain <index_image_to_explain>"""
         )
 
+logging.basicConfig(
+    filename="./data/mnist-oab.log",
+    filemode="a",
+    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+    level=logging.DEBUG,
+)
+
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -133,6 +141,7 @@ def run_explain(index_tr: int) -> None:
     possibly together with the `tosave` dict
     """
     (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+    logger = logging.getLogger("mnist-oab")
 
     NUM_TRAIN_IMAGES = len(X_train)
     NUM_TEST_IMAGES = len(X_test)
@@ -272,9 +281,13 @@ def run_explain(index_tr: int) -> None:
         bb_predict_proba=bb_predict_proba,
     )
 
+    logging.warning("done creating ILOREM")
+
     exp = explainer.explain_instance(
         img, num_samples=1000, use_weights=True, metric=neuclidean
     )
+
+    logging.warning("done .explain_instance")
 
     print("e = {\n\tr = %s\n\tc = %s}" % (exp.rstr(), exp.cstr()))
     print(f"exp.bb_pred: {exp.bb_pred}")
@@ -297,7 +310,9 @@ def run_explain(index_tr: int) -> None:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # this is temporary like the exit(0)
-    notify_task(current_user, good=True, task=f"explanation of {index_tr}, {type(exp.dt)}")
+    notify_task(
+        current_user, good=True, task=f"explanation of {index_tr}, {type(exp.dt)}"
+    )
 
     return tosave
 
@@ -437,10 +452,10 @@ logging.info(f"✅ Setup for {current_user} done.")
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger()
+    logger = logging.getLogger("mnist-oab")
     console = Console()
 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.WARNING)
 
     gpus = tf.config.list_physical_devices("GPU")
     logging.info(f"Do we even have a gpu? {'no 🤣' if len(gpus)==0 else gpus}")

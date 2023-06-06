@@ -10,6 +10,7 @@ from mnist import get_data, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
+import sklearn
 
 data_table_structure = ("id int", "a array", "encoded array")
 
@@ -24,7 +25,8 @@ class Domain:
 
 @define
 class LatentDT:
-    predicted_class: int  # index of classes, refers to Domain.classes
+    # predicted_class: int  # index of classes, refers to Domain.classes
+    model: sklearn.tree._classes.DecisionTreeClassifier
 
 
 @define
@@ -53,6 +55,7 @@ class TreePoint:
         repr=lambda value: f"{type(value)}",
     )
     encoded: Latent
+    dt: LatentDT
     # bb: Blackbox
     # true_class: int  # index of classes, refers to Domain.classes
 
@@ -118,6 +121,7 @@ def load(id: int) -> None | TreePoint:
                 id=id,
                 a=row["a"],
                 encoded=Latent(a=row["encoded"]),
+                dt=LatentDT(model=row["dt"])
             )
     else:
         raise ValueError(f"id was not an int: {id}")
@@ -247,6 +251,7 @@ if __name__ == "__main__":
                 id=i,
                 a=point,
                 encoded=Latent(a=tosave["limg"]),
+                dt=LatentDT(model=tosave["dt"]),
             )
             miao.save()
 

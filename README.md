@@ -41,6 +41,15 @@ in ~/.jupyter/jupyter_notebook_config.py, change:
     'bb_pred': 6,
     'dt_pred': 6,
     'fidelity': 1.0,
-    'limg': array([ 0.7269481 ,  1.16434   , -0.42264208,  2.3466258 ], dtype=float32)
+    'limg': array([ 0.7269481 ,  1.16434   , -0.42264208,  2.3466258 ], dtype=float32),
+    'dt': DecisionTreeClassifier(max_depth=16, min_samples_leaf=0.001, min_samples_split=0.002)
 }
 ```
+
+# how are generated exemplars/counterexemplars
+Exemplars are generated randomly and then discriminated. One by one are verified if can be exemplars, then taken or rejected as exemplars. This goes until we have enough exemplars or max attempts.
+counterexemplars: take the rule to falsify, set the corresponding attribute as falsified (to the decision tree boundary) + a small epsilon.
+
+
+intorno 100, 5 casi su 100 in cui le cose vanno storte. (ovvero se le regole sono vuote)
+le spiegazioni proposte (non genera regola, non genera controregola, fallisce la classificazione del DT)
