@@ -290,13 +290,14 @@ def run_explain(index_tr: int) -> None:
         "dt_pred": exp.dt_pred,
         "fidelity": exp.fidelity,
         "limg": exp.limg,
+        "dt": exp.dt,
     }
 
     with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # this is temporary like the exit(0)
-    notify_task(current_user, good=True, task=f"explanation of {index_tr}")
+    notify_task(current_user, good=True, task=f"explanation of {index_tr}, {type(exp.dt)}")
 
     return tosave
 
