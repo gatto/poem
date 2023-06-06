@@ -13,7 +13,7 @@ from ilore.ineighgen import (
 from ilore.rule import get_counterfactual_rules, get_rule
 from ilore.util import neuclidean
 from scipy.spatial.distance import cdist
-
+import logging
 
 def default_kernel(d, kernel_width):
     return np.sqrt(np.exp(-(d ** 2) / kernel_width ** 2))
@@ -24,6 +24,8 @@ class ILOREM(object):
     def __init__(self, bb_predict, class_name, class_values, neigh_type='lime', ocr=0.1,
                  kernel_width=None, kernel=None, autoencoder=None, use_rgb=True, scale=False, valid_thr=0.5,
                  filter_crules=True, random_state=0, verbose=False, **kwargs):
+        logger = logging.getLogger("mnist-oab")
+        logging.warning("Start creation of ILOREM")
 
         np.random.seed(random_state)
         self.bb_predict = bb_predict
@@ -44,13 +46,18 @@ class ILOREM(object):
 
         self.feature_names = None
         self.__init_neighbor_fn(kwargs)
+        logging.warning("End creation of ILOREM")
 
     def explain_instance(self, img, num_samples=1000, use_weights=True, metric='euclidean'):
+        logger = logging.getLogger("mnist-oab")
+        logging.warning("Start explain_instance")
 
         if self.verbose:
             print('generating neighborhood - %s' % self.neigh_type)
 
         Z, Yb, class_value = self.neighgen_fn(img, num_samples)
+        logging.warning("explain_instance breakpoint: neighgen_fn(img, num_samples)")
+
 
         if self.verbose:
             neigh_class, neigh_counts = np.unique(Yb, return_counts=True)
@@ -65,29 +72,40 @@ class ILOREM(object):
 
         kernel = default_kernel if self.kernel is None else self.kernel
         self.kernel = partial(kernel, kernel_width=self.kernel_width)
+        logging.warning("explain_instance breakpoint: partial(kernel, kernel_width=self.kernel_width)")
 
         self.feature_names = [i for i in range(nbr_features)]
 
         weights = None if not use_weights else self.__calculate_weights__(Z, metric)
+        logging.warning("explain_instance breakpoint: self.__calculate_weights__(Z, metric)")
 
         if self.verbose:
             print('learning local decision tree')
 
         dt = learn_local_decision_tree(Z, Yb, weights, self.class_values, prune_tree=True)
+        logging.warning("explain_instance breakpoint: learn_local_decision_tree(Z, Yb, weights, self.class_values, prune_tree=True)")
+
         Yc = dt.predict(Z)
+        logging.warning("explain_instance breakpoint: dt.predict(Z)")
 
         fidelity = dt.score(Z, Yb, sample_weight=weights)
+        logging.warning("explain_instance breakpoint: dt.score(Z, Yb, sample_weight=weights)")
 
         if self.verbose:
             print('retrieving explanation')
 
         x = Z[0]
         rule = get_rule(x, dt, self.feature_names, self.class_name, self.class_values, self.feature_names)
+        logging.warning("explain_instance breakpoint: get_rule(x, dt, self.feature_names, self.class_name, self.class_values, self.feature_names)")
+
         crules, deltas = get_counterfactual_rules(x, Yc[0], dt, Z, Yc, self.feature_names, self.class_name,
                                                   self.class_values, self.feature_names, self.neighgen.autoencoder,
                                                   self.filter_crules)
+        logging.warning("explain_instance breakpoint: get_counterfactual_rules")
 
         exp = ImageExplanation(img, self.neighgen.autoencoder, self.bb_predict, self.neighgen, self.use_rgb)
+        logging.warning("explain_instance breakpoint: ImageExplanation(img, self.neighgen.autoencoder, self.bb_predict, self.neighgen, self.use_rgb)")
+
         exp.bb_pred = Yb[0]
         exp.dt_pred = Yc[0]
         exp.rule = rule

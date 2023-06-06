@@ -140,8 +140,10 @@ def run_explain(index_tr: int) -> None:
     i.e. the ILORE decision tree
     possibly together with the `tosave` dict
     """
-    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
     logger = logging.getLogger("mnist-oab")
+    logging.warning(f"Start run_explain of {index_tr}")
+
+    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
     NUM_TRAIN_IMAGES = len(X_train)
     NUM_TEST_IMAGES = len(X_test)
@@ -311,7 +313,7 @@ def run_explain(index_tr: int) -> None:
 
     # this is temporary like the exit(0)
     notify_task(
-        current_user, good=True, task=f"explanation of {index_tr}, {type(exp.dt)}"
+        current_user, good=True, task=f"explanation of {index_tr}"
     )
 
     return tosave
