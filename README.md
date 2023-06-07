@@ -53,3 +53,7 @@ counterexemplars: take the rule to falsify, set the corresponding attribute as f
 
 intorno 100, 5 casi su 100 in cui le cose vanno storte. (ovvero se le regole sono vuote)
 le spiegazioni proposte (non genera regola, non genera controregola, fallisce la classificazione del DT)
+
+
+# times
+of an execution of 1:22 minutes:seconds, neighgen_fn(img, num_samples) takes 1:12
