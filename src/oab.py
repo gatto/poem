@@ -59,7 +59,6 @@ class TreePoint:
     # bb: Blackbox
     # true_class: int  # index of classes, refers to Domain.classes
 
-
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
         cur = con.cursor()
@@ -121,7 +120,7 @@ def load(id: int) -> None | TreePoint:
                 id=id,
                 a=row["a"],
                 encoded=Latent(a=row["encoded"]),
-                dt=LatentDT(model=row["dt"])
+                dt=LatentDT(model=row["dt"]),
             )
     else:
         raise ValueError(f"id was not an int: {id}")
@@ -244,7 +243,7 @@ if __name__ == "__main__":
                 ) as f:
                     tosave = pickle.load(f)
             except FileNotFoundError:
-                tosave = run_explain(i)
+                tosave = run_explain(i, X_tree, Y_tree)
 
             # the following creates the actual data point
             miao = TreePoint(

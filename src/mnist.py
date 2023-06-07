@@ -134,7 +134,7 @@ def get_data(dataset: str = "mnist") -> tuple:
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
 
-def run_explain(index_tr: int) -> None:
+def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     """
     This should, at some point, return what I need
     i.e. the ILORE decision tree
@@ -143,14 +143,10 @@ def run_explain(index_tr: int) -> None:
     logger = logging.getLogger("mnist-oab")
     logging.warning(f"Start run_explain of {index_tr}")
 
-    (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
-
-    NUM_TRAIN_IMAGES = len(X_train)
-    NUM_TEST_IMAGES = len(X_test)
-    NUM_IMAGES = NUM_TRAIN_IMAGES + NUM_TEST_IMAGES
+    NUM_IMAGES = len(X)
     print(f"We have {NUM_IMAGES} images")
 
-    class_values = ["%s" % i for i in range(len(np.unique(Y_test)))]
+    class_values = ["%s" % i for i in range(len(np.unique(Y)))]
     print(f"Classes are: {class_values}")
 
     """
@@ -237,16 +233,16 @@ def run_explain(index_tr: int) -> None:
         black_box, black_box_filename, use_rgb
     )  # g this loads bb to disk and returns 2 functs
 
-    Y_pred = bb_predict(X_test)
-    print(classification_report(Y_test, Y_pred))
+    Y_pred = bb_predict(X)
+    # print(classification_report(Y, Y_pred))
 
     ae = get_autoencoder(
-        X_test, ae_name, dataset, path_aemodels
+        X, ae_name, dataset, path_aemodels
     )  # was next(trainGen) instead of X_train (xxx X_test or X_train?)
     ae.load_model()
 
-    print(f"explaining image #{index_tr} from [red]test[/] set")
-    img = X_test[index_tr]
+    print(f"explaining image #{index_tr} from supplied dataset")
+    img = X[index_tr]
     plt.imshow(img)
     plt.savefig(
         "./data/aemodels/mnist/aae/explanation/img_to_explain_%s.png" % index_tr,
@@ -312,9 +308,7 @@ def run_explain(index_tr: int) -> None:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # this is temporary like the exit(0)
-    notify_task(
-        current_user, good=True, task=f"explanation of {index_tr}"
-    )
+    notify_task(current_user, good=True, task=f"explanation of {index_tr}")
 
     return tosave
 
@@ -615,5 +609,6 @@ if __name__ == "__main__":
         except IndexError:
             index_tr = 156
 
-        run_explain(index_tr)
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+        run_explain(index_tr, X_tree, Y_tree)
     # end explain an image
