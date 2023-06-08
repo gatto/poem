@@ -30,5 +30,5 @@ if __name__ == "__main__":
         my_counter += 1
 
     print(
-        f"Explained instances from {run_options[0]} to {run_options[1]} amounting to {my_counter} instances."
+        f"Explained instances from {max_i+1} to {max_i+run_options} amounting to {my_counter} instances."
     )
