@@ -17,9 +17,11 @@ if __name__ == "__main__":
     run_options = int(run_options)
     my_counter = 0
     explanation_path = path_aemodels / "explanation"
+
     # check what I've already done
-    max_i = int(max(set(explanation_path.glob("*.pickle"))).stem)
-    
+    hey = {int(path.stem) for path in explanation_path.glob("*.pickle")}
+    max_i = max(hey)
+
     (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
     # do some more
