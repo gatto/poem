@@ -1,6 +1,7 @@
 import sys
 from parameters import path_aemodels
 from rich import print
+import gc
 
 if __name__ == "__main__":
     try:
@@ -28,6 +29,8 @@ if __name__ == "__main__":
     for i in range(max_i+1, max_i+1+run_options):
         _ = run_explain(i, X_tree, Y_tree)
         my_counter += 1
+        if my_counter % 10 == 0:
+            gc.collect()
 
     print(
         f"Explained instances from {max_i+1} to {max_i+run_options} amounting to {my_counter} instances."
