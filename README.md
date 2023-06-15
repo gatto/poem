@@ -5,12 +5,11 @@
 ```bash
 cd repos/tesi
 source venv/bin/activate
+conda activate tesi
 ```
 
-## start remotely
-gatto (it's in ~/.local/bin/)
-
 # list of readmes
+- `./README.md`
 - `src/README.md`
 - `src/data/README.md`
 
