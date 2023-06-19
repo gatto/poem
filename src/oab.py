@@ -46,9 +46,7 @@ class LatentDT:
 
     @model_json.default
     def _model_json_default(self):
-        hi = skljson.to_dict(self.model)
-        print("heeeeeeeeeeeeey", type(hi), hi)
-        return hi
+        return skljson.to_dict(self.model)
 
 
 @define
@@ -103,6 +101,30 @@ class TreePoint:
         con.close()
 
 
+def knn(a: np.ndarray) -> TreePoint:
+    """
+    this returns only the closest TreePoint to the inputted point
+    (latent space representation)
+    """
+    from sklearn.neighbors import NearestNeighbors
+
+    neigh = NearestNeighbors(n_neighbors=1)
+
+    points: list[TreePoint] = load_all()
+    latent_arrays: list[np.ndarray] = [x.latent.a for x in points]
+
+    # I train this on the np.ndarray latent repr of the points,
+    neigh.fit(latent_arrays)
+
+    fitted_model = neigh.kneighbors([a])
+    # if I need this…
+    distance: np.float64 = fitted_model[0][0][0]
+    index: np.int64 = fitted_model[1][0][0]
+
+    # I return the entire TreePoint though
+    return points[index]
+
+
 @define
 class Explainer:
     """
@@ -112,7 +134,7 @@ class Explainer:
 
 def list_all() -> list[int]:
     """
-    Returns a tuple of TreePoint ids that are in the db.
+    Returns a list of TreePoint ids that are in the db.
     """
     con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
     con.row_factory = sqlite3.Row
@@ -167,6 +189,14 @@ def load(id: int) -> None | TreePoint:
             )
     else:
         raise ValueError(f"id was not an int: {id}")
+
+
+def load_all() -> list[TreePoint]:
+    results = []
+
+    for i in list_all():
+        results.append(load(i))
+    return results
 
 
 def explain(my_path: Path) -> Explainer:

@@ -58,6 +58,13 @@ le spiegazioni proposte (non genera regola, non genera controregola, fallisce la
 # times
 of an execution of 1:22 minutes:seconds, neighgen_fn(img, num_samples) takes 1:12
 
+# stuff todo
+TODO: extract and set the Domain.classes array.
+TODO: set both predicted_class as integer indexes of the Domain.classes array.
+
+TODO: oab.load_all(<property name>) to load all points latent representation for instance. Need it for KNN.
+
+
 # some development notes
 ```json
 {
