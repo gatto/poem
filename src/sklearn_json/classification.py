@@ -312,7 +312,7 @@ def serialize_decision_tree(model):
         'feature_importances_': model.feature_importances_.tolist(),
         'max_features_': model.max_features_,
         'n_classes_': int(model.n_classes_),
-        'n_features_': model.n_features_in,
+        'n_features_': model.n_features_in_,
         'n_outputs_': model.n_outputs_,
         'tree_': tree,
         'classes_': model.classes_.tolist(),
