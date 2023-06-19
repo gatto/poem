@@ -57,10 +57,15 @@ class LatentDT:
 
 @define
 class Latent:
+    """
+    a: the record in latent representation
+    """
     a: np.ndarray = field(
         validator=validators.instance_of(np.ndarray),
-        repr=lambda value: f"{type(value)}",
-    )  # record in latent space
+        repr=lambda value: f"{type(value)}" if len(value) > 9 else str(value),
+    )
+    # TODO
+    # margins: np.ndarray with feature, min, max
     # space: bool
 
 
@@ -352,7 +357,7 @@ if __name__ == "__main__":
                     model=tosave["dt"],
                     fidelity=tosave["fidelity"],
                     rules=str(tosave["rstr"]),
-                    counterrules=tosave["cstr"]
+                    counterrules=tosave["cstr"],
                 ),
                 blackbox=Blackbox(predicted_class=tosave["bb_pred"]),
                 domain=Domain(classes="test xxx"),
