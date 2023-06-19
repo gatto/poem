@@ -21,7 +21,7 @@ from keras.layers import (
 from keras.models import Model, Sequential
 from keras.optimizers import Adam
 from keras.utils import plot_model
-from autoencoder import Autoencoder
+from abele.autoencoder import Autoencoder
 
 
 def sampling(args):
