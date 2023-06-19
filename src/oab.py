@@ -62,7 +62,7 @@ class Latent:
     """
     a: np.ndarray = field(
         validator=validators.instance_of(np.ndarray),
-        repr=lambda value: f"{type(value)}" if len(value) > 9 else str(value),
+        repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
     )
     # TODO
     # margins: np.ndarray with feature, min, max
