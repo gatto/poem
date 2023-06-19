@@ -39,7 +39,10 @@ class LatentDT:
     predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
-    model_json: dict = field(init=False)
+    model_json: dict = field(
+        init=False,
+        repr=lambda value: f"{type(value)}",
+    )
 
     @model_json.default
     def _model_json_default(self):
@@ -204,7 +207,6 @@ def _delete_create_table() -> None:
     con.close()
 
 
-
 def _adapt_array(arr):
     out = io.BytesIO()
     np.save(out, arr)
@@ -227,8 +229,8 @@ cur.execute("create table test (arr array)")
 console = Console()
 sqlite3.register_adapter(np.ndarray, _adapt_array)
 sqlite3.register_converter("array", _convert_array)
-sqlite3.register_adapter(dict, lambda d: json.dumps(d).encode('utf8'))
-sqlite3.register_converter("dictionary", lambda d: json.loads(d.decode('utf8')))
+sqlite3.register_adapter(dict, lambda d: json.dumps(d).encode("utf8"))
+sqlite3.register_converter("dictionary", lambda d: json.loads(d.decode("utf8")))
 
 
 if __name__ == "__main__":
