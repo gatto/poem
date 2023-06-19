@@ -6,13 +6,15 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import sklearn
+import sklearn_json as skljson
 from attrs import define, field, validators
 from mnist import get_data, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
-import sklearn
-import sklearn_json as skljson
+from sklearn.neighbors import NearestNeighbors
+
 
 data_table_structure = (
     "id int",
@@ -21,6 +23,8 @@ data_table_structure = (
     "DTpredicted int",
     "DTmodel dictionary",
     "DTfidelity float",
+    "rules str",
+    "counterrules str",
     "BBpredicted int",
     "classes str",
 )
@@ -39,6 +43,8 @@ class LatentDT:
     predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
+    rules: str
+    counterrules: str
     model_json: dict = field(
         init=False,
         repr=lambda value: f"{type(value)}",
@@ -93,6 +99,8 @@ class TreePoint:
             self.latentdt.predicted_class,
             self.latentdt.model_json,
             self.latentdt.fidelity,
+            self.latentdt.rules,
+            self.latentdt.counterrules,
             self.blackbox.predicted_class,
             self.domain.classes,
         )
@@ -101,12 +109,18 @@ class TreePoint:
         con.close()
 
 
+@define
+class Explainer:
+    """
+    this is what oab.py returns when you ask an explanation
+    """
+
+
 def knn(a: np.ndarray) -> TreePoint:
     """
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
     """
-    from sklearn.neighbors import NearestNeighbors
 
     neigh = NearestNeighbors(n_neighbors=1)
 
@@ -123,13 +137,6 @@ def knn(a: np.ndarray) -> TreePoint:
 
     # I return the entire TreePoint though
     return points[index]
-
-
-@define
-class Explainer:
-    """
-    this is what oab.py returns when you ask an explanation
-    """
 
 
 def list_all() -> list[int]:
@@ -149,7 +156,7 @@ def list_all() -> list[int]:
 def load(id: int) -> None | TreePoint:
     """
     Loads a TrainPoint if you pass an id:int
-    Loads a set of TrainPoint if you pass an id: collection
+    TODO: Loads a set of TrainPoint if you pass an id: collection
     """
     if isinstance(id, int):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -183,6 +190,8 @@ def load(id: int) -> None | TreePoint:
                     predicted_class=row["DTpredicted"],
                     model=rebuilt_dt,
                     fidelity=row["DTfidelity"],
+                    rules=row["rules"],
+                    counterrules=row["counterrules"],
                 ),
                 blackbox=Blackbox(predicted_class=row["BBpredicted"]),
                 domain=Domain(classes=row["classes"]),
@@ -192,6 +201,9 @@ def load(id: int) -> None | TreePoint:
 
 
 def load_all() -> list[TreePoint]:
+    """
+    Returns a list of all TreePoints that are in the sql db
+    """
     results = []
 
     for i in list_all():
@@ -200,12 +212,21 @@ def load_all() -> list[TreePoint]:
 
 
 def explain(my_path: Path) -> Explainer:
+    """
+    This is the main method that should be exposed externally.
+    intended usage:
+
+    import oab
+    explanation = oab.explain(<path_to_image>)
+
+    the format of the Explainer object is still to be defined (TODO)
+    """
     pass
 
 
 def _data_table_structure_query() -> str:
     """
-    creates the table structure query for data INSERT
+    Creates the table structure query for data INSERT
     """
     my_query = "("
     for column in data_table_structure:
@@ -330,6 +351,8 @@ if __name__ == "__main__":
                     predicted_class=tosave["dt_pred"],
                     model=tosave["dt"],
                     fidelity=tosave["fidelity"],
+                    rules=str(tosave["rstr"]),
+                    counterrules=tosave["cstr"]
                 ),
                 blackbox=Blackbox(predicted_class=tosave["bb_pred"]),
                 domain=Domain(classes="test xxx"),

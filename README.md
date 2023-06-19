@@ -78,8 +78,8 @@ TODO: representation of Latent.a is the actual array if it's shorter than e.g. 1
 }
 ```
 
-- **cstr**
 - **rstr**
+- **cstr**
 - Blackbox.predicted_class:int **bb_pred**
 - LatentDT.predicted_class:int **dt_pred**
 - LatentDT.fidelity:float **fidelity**
