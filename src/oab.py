@@ -39,7 +39,7 @@ class LatentDT:
     predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
-    model_json: str = field(init=False)
+    model_json: dict = field(init=False)
 
     @model_json.default
     def _model_json_default(self):
