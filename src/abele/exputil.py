@@ -9,7 +9,7 @@ from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, MaxPooling
 from keras.models import Sequential, model_from_json
 from keras.utils import to_categorical
 from numpy import linalg as LA
-from oriadversarial import AdversarialAutoencoderCifar10, AdversarialAutoencoderMnist
+from abele.adversarial import AdversarialAutoencoderCifar10, AdversarialAutoencoderMnist
 from skimage.color import gray2rgb
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.preprocessing import MinMaxScaler

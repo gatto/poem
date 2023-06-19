@@ -24,6 +24,7 @@ notebook
 seaborn
 scikit-learn
 scikit-image
+sklearn-json
 rich
 deap
 
@@ -56,3 +57,52 @@ le spiegazioni proposte (non genera regola, non genera controregola, fallisce la
 
 # times
 of an execution of 1:22 minutes:seconds, neighgen_fn(img, num_samples) takes 1:12
+
+# stuff todo
+TODO: extract and set the Domain.classes array.
+TODO: set both predicted_class as integer indexes of the Domain.classes array.
+
+TODO: representation of Latent.a is the actual array if it's shorter than e.g. 10, <np.ndarray> if it's longer
+
+
+# some development notes
+```json
+{
+    'rstr': <ilore.rule.Rule object at 0x7fb76737feb0>,
+    'cstr': '{ { 3 <= 0.89 } --> { class: 2 }, { 1 <= 0.55 } --> { class: 4 }, { 3 <= -0.45 } --> { class: 0 }, { 1 <= -0.62 } --> { class: 4 } }',
+    'bb_pred': 6,
+    'dt_pred': 6,
+    'fidelity': 1.0,
+    'limg': array([ 0.7269481 ,  1.16434   , -0.42264208,  2.3466258 ], dtype=float32),
+    'dt': DecisionTreeClassifier(max_depth=16, min_samples_leaf=0.001, min_samples_split=0.002)
+}
+```
+
+- **rstr**
+- **cstr**
+- Blackbox.predicted_class:int **bb_pred**
+- LatentDT.predicted_class:int **dt_pred**
+- LatentDT.fidelity:float **fidelity**
+- Latent.a:np.ndarray  **limg**
+- LatentDT.model:sklearn.tree._classes.DecisionTreeClassifier **dt**
+
+## additional
+√ Domain
+- classes (is the list of strings of classes in the domain problem)
+
+√ LatentDT
+- predicted_class
+- model
+- fidelity
+
+√ Latent
+- a
+
+√ Blackbox
+-predicted class
+
+TreePoint
+- id
+- a
+
+Explainer
