@@ -11,13 +11,14 @@ from rich import print
 from rich.console import Console
 from rich.table import Table
 import sklearn
+import sklearn_json as skljson
 
 data_table_structure = (
     "id int",
     "a array",
     "latent array",
     "DTpredicted int",
-    "DTmodel",
+    "DTmodel str",
     "DTfidelity float",
     "BBpredicted int",
     "classes str",
@@ -37,6 +38,13 @@ class LatentDT:
     predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
+    model_json: str = field(init=False)
+
+    @model_json.default
+    def _model_json_default(self):
+        hi = skljson.to_dict(self.model)
+        print("heeeeeeeeeeeeey", type(hi), hi)
+        return hi
 
 
 @define
@@ -81,7 +89,7 @@ class TreePoint:
             self.a,
             self.latent.a,
             self.latentdt.predicted_class,
-            self.latentdt.model,
+            self.latentdt.model_json,
             self.latentdt.fidelity,
             self.blackbox.predicted_class,
             self.domain.classes,
@@ -137,6 +145,9 @@ def load(id: int) -> None | TreePoint:
             row = row[0]  # there is only one row anyway
             assert id == row["id"]
 
+            # TODO: rebuild LatentDT.model from json
+            rebuilt_dt = skljson.from_dict(row["DTmodel"])
+
             # TODO: can i automate this based on the db schema?
             return TreePoint(
                 id=id,
@@ -144,7 +155,7 @@ def load(id: int) -> None | TreePoint:
                 latent=Latent(a=row["latent"]),
                 latentdt=LatentDT(
                     predicted_class=row["DTpredicted"],
-                    model=row["DTmodel"],
+                    model=rebuilt_dt,
                     fidelity=row["DTfidelity"],
                 ),
                 blackbox=Blackbox(predicted_class=row["BBpredicted"]),
