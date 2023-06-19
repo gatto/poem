@@ -103,21 +103,21 @@ class TreePoint:
 
 def knn(a: np.ndarray) -> TreePoint:
     """
-    this returns only the closest TreePoint to the inputted point
-    (latent space representation)
+    this returns only the closest TreePoint to the inputted point `a`
+    (in latent space representation)
     """
     from sklearn.neighbors import NearestNeighbors
 
     neigh = NearestNeighbors(n_neighbors=1)
 
     points: list[TreePoint] = load_all()
-    latent_arrays: list[np.ndarray] = [x.latent.a for x in points]
+    latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
 
     # I train this on the np.ndarray latent repr of the points,
     neigh.fit(latent_arrays)
 
     fitted_model = neigh.kneighbors([a])
-    # if I need this…
+    # if I need the distance it's here…
     distance: np.float64 = fitted_model[0][0][0]
     index: np.int64 = fitted_model[1][0][0]
 

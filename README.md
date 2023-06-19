@@ -62,7 +62,7 @@ of an execution of 1:22 minutes:seconds, neighgen_fn(img, num_samples) takes 1:1
 TODO: extract and set the Domain.classes array.
 TODO: set both predicted_class as integer indexes of the Domain.classes array.
 
-TODO: oab.load_all(<property name>) to load all points latent representation for instance. Need it for KNN.
+TODO: representation of Latent.a is the actual array if it's shorter than e.g. 10, <np.ndarray> if it's longer
 
 
 # some development notes
