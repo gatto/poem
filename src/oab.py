@@ -12,7 +12,16 @@ from rich.console import Console
 from rich.table import Table
 import sklearn
 
-data_table_structure = ("id int", "a array", "encoded array")
+data_table_structure = (
+    "id int",
+    "a array",
+    "latent array",
+    "DTpredicted int",
+    "DTmodel",
+    "DTfidelity float",
+    "BBpredicted int",
+    "classes str",
+)
 
 data_path = Path("./data")
 data_table_path = data_path / "treepoints.db"
@@ -25,8 +34,9 @@ class Domain:
 
 @define
 class LatentDT:
-    # predicted_class: int  # index of classes, refers to Domain.classes
+    predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
+    fidelity: float
 
 
 @define
@@ -46,7 +56,8 @@ class Blackbox:
 @define
 class TreePoint:
     """
-    TrainPoint.a is the original array in real space
+    TreePoint.id is the index of the record in the passed dataset
+    TreePoint.a is the original array in real space
     """
 
     id: int = field(validator=validators.instance_of(int))
@@ -54,16 +65,27 @@ class TreePoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
-    encoded: Latent
-    dt: LatentDT
-    # bb: Blackbox
+    latent: Latent
+    latentdt: LatentDT
+    blackbox: Blackbox
+    domain: Domain
     # true_class: int  # index of classes, refers to Domain.classes
 
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
         cur = con.cursor()
 
-        data = (self.id, self.a, self.encoded.a)
+        # TODO: can i automate this also based on db schema?
+        data = (
+            self.id,
+            self.a,
+            self.latent.a,
+            self.latentdt.predicted_class,
+            self.latentdt.model,
+            self.latentdt.fidelity,
+            self.blackbox.predicted_class,
+            self.domain.classes,
+        )
         cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
         con.commit()
         con.close()
@@ -119,8 +141,14 @@ def load(id: int) -> None | TreePoint:
             return TreePoint(
                 id=id,
                 a=row["a"],
-                encoded=Latent(a=row["encoded"]),
-                dt=LatentDT(model=row["dt"]),
+                latent=Latent(a=row["latent"]),
+                latentdt=LatentDT(
+                    predicted_class=row["DTpredicted"],
+                    model=row["DTmodel"],
+                    fidelity=row["DTfidelity"],
+                ),
+                blackbox=Blackbox(predicted_class=row["BBpredicted"]),
+                domain=Domain(classes=row["classes"]),
             )
     else:
         raise ValueError(f"id was not an int: {id}")
@@ -246,11 +274,18 @@ if __name__ == "__main__":
                 tosave = run_explain(i, X_tree, Y_tree)
 
             # the following creates the actual data point
+            # TODO: can i automate this also based on db schema?
             miao = TreePoint(
                 id=i,
                 a=point,
-                encoded=Latent(a=tosave["limg"]),
-                dt=LatentDT(model=tosave["dt"]),
+                latent=Latent(a=tosave["limg"]),
+                latentdt=LatentDT(
+                    predicted_class=tosave["dt_pred"],
+                    model=tosave["dt"],
+                    fidelity=tosave["fidelity"],
+                ),
+                blackbox=Blackbox(predicted_class=tosave["bb_pred"]),
+                domain=Domain(classes="test xxx"),
             )
             miao.save()
 
