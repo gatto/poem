@@ -5,17 +5,17 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import keras.backend as K
 import numpy as np
 import sklearn
 import sklearn_json as skljson
-from attrs import define, field, validators
 from abele.exputil import get_autoencoder
+from attrs import define, field, validators
 from mnist import get_data, get_dataset_metadata, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
-
 
 data_table_structure = (
     "id int",
