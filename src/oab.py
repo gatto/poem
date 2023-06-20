@@ -60,6 +60,7 @@ class Latent:
     """
     a: the record in latent representation
     """
+
     a: np.ndarray = field(
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
@@ -115,13 +116,72 @@ class TreePoint:
 
 
 @define
+class TestPoint:
+    a: np.ndarray = field(
+        validator=validators.instance_of(np.ndarray),
+        repr=lambda value: f"{type(value)}",
+    )
+    latent: Latent = field()
+    blackbox: Blackbox
+    domain: Domain
+
+    @latent.default
+    def _latent_default(self):
+        # TODO: encode the TestPoint.a to build TestPoint.Latent.a
+        pass
+
+    @classmethod
+    def generate_test(cls):
+        """
+        can use TestPoint.generate_test to get a TestPoint usable for testing
+        """
+        my_point = load(0)
+        return cls(
+            a=my_point.a,
+            latent=Latent(a=my_point.latent.a),
+            blackbox=Blackbox(predicted_class=my_point.blackbox.predicted_class),
+            domain=Domain(classes=my_point.domain.classes),
+        )
+
+
+@define
 class Explainer:
     """
     this is what oab.py returns when you ask an explanation
     """
 
+    testpoint: TestPoint
 
-def knn(a: np.ndarray) -> TreePoint:
+    @classmethod
+    def from_file(cls, my_path: Path):
+        """
+        This is the main method that should be exposed externally.
+        intended usage:
+
+        from oab import Explainer
+        explanation = Explainer.from_file(<path_to_image>)
+
+        the format of the Explainer object is still to be defined (TODO)
+
+        TODO: structure of this method is
+        1. create a TestPoint from file in my_path
+        2. explain somehow
+        3. generate Explainer which will contain TestPoint
+        """
+
+        return cls()
+
+    @classmethod
+    def _expl(cls, a: np.ndarray):
+        """
+        this is the private funct that actually explains
+        TODO: should this be here or in TestPoint?
+        """
+
+        pass
+
+
+def knn(point: TestPoint) -> TreePoint:
     """
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
@@ -135,7 +195,7 @@ def knn(a: np.ndarray) -> TreePoint:
     # I train this on the np.ndarray latent repr of the points,
     neigh.fit(latent_arrays)
 
-    fitted_model = neigh.kneighbors([a])
+    fitted_model = neigh.kneighbors([point.a])
     # if I need the distance it's here…
     distance: np.float64 = fitted_model[0][0][0]
     index: np.int64 = fitted_model[1][0][0]
@@ -214,19 +274,6 @@ def load_all() -> list[TreePoint]:
     for i in list_all():
         results.append(load(i))
     return results
-
-
-def explain(my_path: Path) -> Explainer:
-    """
-    This is the main method that should be exposed externally.
-    intended usage:
-
-    import oab
-    explanation = oab.explain(<path_to_image>)
-
-    the format of the Explainer object is still to be defined (TODO)
-    """
-    pass
 
 
 def _data_table_structure_query() -> str:
