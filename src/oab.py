@@ -5,6 +5,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import abele
 import keras.backend as K
 import numpy as np
 import sklearn
@@ -414,10 +415,9 @@ if __name__ == "__main__":
 
         # let's store the autoencoder in data/oab/
         mtda = get_dataset_metadata()
-        ae = get_autoencoder(
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
             X_test, mtda["ae_name"], mtda["dataset"], mtda["path_aemodels"]
         )
-        print(type(ae))
         ae.load_model()
         print(type(ae))
 
