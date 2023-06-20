@@ -9,7 +9,8 @@ import numpy as np
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
-from mnist import get_data, run_explain
+from abele.exputil import get_autoencoder
+from mnist import get_data, get_dataset_metadata, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
@@ -410,6 +411,18 @@ if __name__ == "__main__":
                 domain=Domain(classes="test xxx"),
             )
             miao.save()
+
+        # let's store the autoencoder in data/oab/
+        mtda = get_dataset_metadata()
+        ae = get_autoencoder(
+            X_test, mtda["ae_name"], mtda["dataset"], mtda["path_aemodels"]
+        )
+        print(type(ae))
+        ae.load_model()
+        print(type(ae))
+
+        # X_train_ae = ae.decode(ae.encode(X_train))
+        # X_test_ae = ae.decode(ae.encode(X_test))
 
         if run_options == "test-train":
             # only for test purposes
