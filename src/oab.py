@@ -195,7 +195,7 @@ def knn(point: TestPoint) -> TreePoint:
     # I train this on the np.ndarray latent repr of the points,
     neigh.fit(latent_arrays)
 
-    fitted_model = neigh.kneighbors([point.a])
+    fitted_model = neigh.kneighbors([point.latent.a])
     # if I need the distance it's here…
     distance: np.float64 = fitted_model[0][0][0]
     index: np.int64 = fitted_model[1][0][0]
