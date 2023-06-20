@@ -121,9 +121,9 @@ class TestPoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
-    latent: Latent = field(init=False)
     blackbox: Blackbox
     domain: Domain
+    latent: Latent = field()
 
     @latent.default
     def _latent_default(self):
