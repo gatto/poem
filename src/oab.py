@@ -381,8 +381,8 @@ if __name__ == "__main__":
 
         if run_options == "test-train":
             # only for test purposes
-            X_tree = X_tree[:2]
-            Y_tree = Y_tree[:2]
+            X_tree = X_tree[:100]
+            Y_tree = Y_tree[:100]
 
         for i, point in enumerate(X_tree):
             try:
