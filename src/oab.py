@@ -60,8 +60,8 @@ class Rule:
     on feature, but still varying the feature by **at least** some margin
     **this is not the correct approach for factual generation**
     """
-    operators: ClassVar[list] = field(default=[">", ">=", "<", "<="])
     rule: dict = field()
+    operators: ClassVar[list[str]] = field(default=[">", ">=", "<", "<="])
 
 
 @define
