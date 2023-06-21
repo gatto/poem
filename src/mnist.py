@@ -476,6 +476,7 @@ if __name__ == "__main__":
         empty_folder("./data/aemodels/mnist/aae")
         empty_folder("./data/models")
         empty_folder("./data/results/bb")
+        empty_folder("./data/oab")
         empty_folder("./data")
         exit(0)
 
