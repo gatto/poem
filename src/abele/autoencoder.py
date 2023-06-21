@@ -3,7 +3,7 @@ from abc import abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import model_from_json
-
+from pathlib import Path
 
 def save(model, model_name, path):
     model_filename = '%s%s.json' % (path, model_name)
@@ -106,7 +106,10 @@ class Autoencoder(object):
             save(self.generator, '%s_generator' % self.name, self.path)
 
     def load_model(self):
+        print('%s_encoder' % self.name, self.path) # testing
+        print(Path('%s_encoder' % self.name, self.path).exists())
         self.encoder = load('%s_encoder' % self.name, self.path)
+        print('%s_decoder' % self.name, self.path) # testing
         self.decoder = load('%s_decoder' % self.name, self.path)
         self.autoencoder = load('%s_autoencoder' % self.name, self.path)
         if 'aae' in self.name or 'aag' in self.name:
