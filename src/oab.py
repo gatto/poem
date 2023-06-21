@@ -117,6 +117,8 @@ class LatentDT:
             print(Rule.operators)
             parts = my_rule.split("-->")
             print(parts)
+            parts[1] = parts[1][parts[1].find(":")+1:]
+            print(parts)
 
 
         exit(1)
