@@ -110,9 +110,13 @@ class LatentDT:
         all_rules = self.s_rules.translate(str.maketrans("", "", "{} "))
         if all_rules:
             all_rules = all_rules.split("-->")
+            print(all_rules)
+
             all_rules[1] = all_rules[1][all_rules[1].find(":") + 1 :]
+            print(all_rules[1])
 
             all_rules[0] = all_rules[0].split(",")
+            print(all_rules[0])
             for rule in all_rules:
                 for operator in operators:
                     if operator in rule:
