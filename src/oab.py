@@ -98,15 +98,34 @@ class LatentDT:
     def _rules_default(self):
         """
         This converts s_rules:str to rules:list[Rule]
+
+        REMEMBER THAT positive rules mean you're getting
+        the `target_class` by 'applying' **ALL** the positive rules.
+
+        THIS IS DIFFERENT THAN COUNTERRULES where you get the target_class
+        by falsifying only one of the counterrules.
         """
         results = []
-        """print(f"pre work: {self.s_rules}")
-        working = self.s_rules.translate(str.maketrans("", "", "{} ")).split(",")
-        print(working)
-        for my_rule in working:
-            print(my_rule)
-        exit(1)
-        """
+        # str.maketrans's third argument indicates characters to remove with str.translate(•)
+        all_rules = self.s_rules.translate(str.maketrans("", "", "{} "))
+        if all_rules:
+            all_rules = all_rules.split("-->")
+            all_rules[1] = all_rules[1][all_rules[1].find(":") + 1 :]
+
+            all_rules = all_rules[0].split(",")
+            for rule in all_rules:
+                for operator in operators:
+                    if operator in rule:
+                        rule = rule.split(operator)
+                        break
+                results.append(
+                    Rule(
+                        feature=int(rule[0]),
+                        operator=operator,
+                        value=float(rule[1]),
+                        target_class=all_rules[1],
+                    )
+                )
         return results
 
     @counterrules.default
@@ -115,19 +134,14 @@ class LatentDT:
         This converts s_counterrules:str to counterrules:list[Rule]
         """
         results = []
-        print(f"pre work: {self.s_counterrules}")
         # str.maketrans's third argument indicates characters to remove with str.translate(•)
         all_rules = self.s_counterrules.translate(str.maketrans("", "", "{} "))
-        print(all_rules)
 
         if all_rules:
             all_rules = all_rules.split(",")
             for my_rule in all_rules:
-                print(my_rule)
                 parts = my_rule.split("-->")
-                print(parts)
                 parts[1] = parts[1][parts[1].find(":") + 1 :]
-                print(parts)
                 for operator in operators:
                     if operator in parts[0]:
                         parts[0] = parts[0].split(operator)
@@ -140,8 +154,6 @@ class LatentDT:
                         target_class=parts[1],
                     )
                 )
-
-            print(results)
         return results
 
 
