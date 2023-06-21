@@ -140,7 +140,7 @@ def get_dataset_metadata() -> dict:
 
     results[
         "path_aemodels"
-    ] = f"data/aemodels/{results['dataset']}/{results['ae_name']}/"
+    ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
 
     return results
 
