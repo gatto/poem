@@ -132,14 +132,19 @@ class TestPoint:
     def _latent_default(self):
         # encodes the TestPoint.a to build TestPoint.Latent.a
         mtda = get_dataset_metadata()
+        print(self.a)
+        print(self.a.shape)
+        print(np.expand_dims(self.a, axis=0))
+        print(np.expand_dims(self.a, axis=0).shape)
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            X_test, mtda["ae_name"], mtda["dataset"], mtda["path_aemodels"]
+            np.expand_dims(self.a, axis=0),
+            mtda["ae_name"],
+            mtda["dataset"],
+            mtda["path_aemodels"],
         )
         ae.load_model()
-        
+
         return Latent(a=ae.encode(self.a))
-
-
 
     @classmethod
     def generate_test(cls):
