@@ -33,6 +33,7 @@ data_table_structure = (
 
 data_path = Path("./data/oab")
 data_table_path = data_path / "mnist.db"
+operators = [">=", "<=", ">", "<"]
 
 
 @define
@@ -46,6 +47,7 @@ class Rule:
         - <
         - <=
     value:float  the value of the latent feature
+    target_class:str the class this targets
 
     methods:
     .marginal_apply(Latent, eps=0.01)
@@ -54,14 +56,19 @@ class Rule:
     returns Latent with Latent.a feature 2 == 5 + eps
     (regardless of what feature 2's value was in Latent)
     **This should be useful for counterfactual image generation**
-    
+
     .respect(Latent)
     returns a Latent object with the rule respected
     on feature, but still varying the feature by **at least** some margin
     **this is not the correct approach for factual generation**
     """
-    rule: dict = field()
-    operators: ClassVar[list[str]] = field(default=[">", ">=", "<", "<="])
+
+    feature: int
+    operator: str
+    value: float
+    # TODO: make target_class an index of Domain.classes again?
+    # remember to correct the rule/counterrules extraction in LatentDT
+    target_class: str
 
 
 @define
@@ -109,18 +116,31 @@ class LatentDT:
         """
         results = []
         print(f"pre work: {self.s_counterrules}")
-        all_rules = self.s_counterrules.translate(str.maketrans("", "", "{} ")).split(",")
+        all_rules = self.s_counterrules.translate(str.maketrans("", "", "{} ")).split(
+            ","
+        )
         print(all_rules)
 
         for my_rule in all_rules:
             print(my_rule)
-            print(Rule.operators)
             parts = my_rule.split("-->")
             print(parts)
-            parts[1] = parts[1][parts[1].find(":")+1:]
+            parts[1] = parts[1][parts[1].find(":") + 1 :]
             print(parts)
+            for operator in operators:
+                if operator in parts[0]:
+                    parts[0] = parts[0].split(operator)
+                    break
+            results.append(
+                Rule(
+                    feature=int(parts[0][0]),
+                    operator=operator,
+                    value=float(parts[0][1]),
+                    target_class=parts[1],
+                )
+            )
 
-
+        print(results)
         exit(1)
 
         return results
