@@ -112,7 +112,7 @@ class LatentDT:
             all_rules = all_rules.split("-->")
             all_rules[1] = all_rules[1][all_rules[1].find(":") + 1 :]
 
-            all_rules = all_rules[0].split(",")
+            all_rules[0] = all_rules[0].split(",")
             for rule in all_rules:
                 for operator in operators:
                     if operator in rule:
