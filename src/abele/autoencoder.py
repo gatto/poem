@@ -3,7 +3,6 @@ from abc import abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import model_from_json
-from pathlib import Path
 
 def save(model, model_name, path):
     model_filename = '%s%s.json' % (path, model_name)
@@ -16,7 +15,6 @@ def save(model, model_name, path):
 
 def load(model_name, path):
     model_filename = "%s%s.json" % (path, model_name)
-    print(f"does {model_filename} exist? {Path(model_filename).exists()}")
     weights_filename = "%s%s_weights.hdf5" % (path, model_name)
     model = model_from_json(open(model_filename, 'r').read())
     model.load_weights(weights_filename)
@@ -108,7 +106,6 @@ class Autoencoder(object):
 
     def load_model(self):
         self.encoder = load('%s_encoder' % self.name, self.path)
-        print('%s_decoder' % self.name, self.path) # testing
         self.decoder = load('%s_decoder' % self.name, self.path)
         self.autoencoder = load('%s_autoencoder' % self.name, self.path)
         if 'aae' in self.name or 'aag' in self.name:
