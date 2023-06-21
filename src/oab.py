@@ -10,6 +10,7 @@ import keras.backend as K
 import numpy as np
 import sklearn
 import sklearn_json as skljson
+
 # from abele.exputil import get_autoencoder
 from attrs import define, field, validators
 from mnist import get_autoencoder, get_data, get_dataset_metadata, run_explain
@@ -129,8 +130,16 @@ class TestPoint:
 
     @latent.default
     def _latent_default(self):
-        # TODO: encode the TestPoint.a to build TestPoint.Latent.a
-        pass
+        # encodes the TestPoint.a to build TestPoint.Latent.a
+        mtda = get_dataset_metadata()
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+            X_test, mtda["ae_name"], mtda["dataset"], mtda["path_aemodels"]
+        )
+        ae.load_model()
+        
+        return Latent(a=ae.encode(self.a))
+
+
 
     @classmethod
     def generate_test(cls):
@@ -140,7 +149,6 @@ class TestPoint:
         my_point = load(0)
         return cls(
             a=my_point.a,
-            latent=Latent(a=my_point.latent.a),
             blackbox=Blackbox(predicted_class=my_point.blackbox.predicted_class),
             domain=Domain(classes=my_point.domain.classes),
         )
@@ -412,17 +420,6 @@ if __name__ == "__main__":
                 domain=Domain(classes="test xxx"),
             )
             miao.save()
-
-        # let's store the autoencoder in data/oab/
-        mtda = get_dataset_metadata()
-        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            X_test, mtda["ae_name"], mtda["dataset"], mtda["path_aemodels"]
-        )
-        ae.load_model()
-        print(type(ae))
-
-        # X_train_ae = ae.decode(ae.encode(X_train))
-        # X_test_ae = ae.decode(ae.encode(X_test))
 
         if run_options == "test-train":
             # only for test purposes
