@@ -4,6 +4,7 @@ import pickle
 import sqlite3
 import sys
 from pathlib import Path
+from typing import ClassVar
 
 import abele
 import matplotlib.pyplot as plt
@@ -59,7 +60,7 @@ class Rule:
     on feature, but still varying the feature by **at least** some margin
     **this is not the correct approach for factual generation**
     """
-
+    operators: ClassVar[list] = field(default=[">", ">=", "<", "<="])
     rule: dict = field()
 
 
@@ -113,6 +114,7 @@ class LatentDT:
 
         for my_rule in working:
             print(my_rule)
+            print(Rule.operators)
 
         exit(1)
 
