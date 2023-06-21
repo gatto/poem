@@ -92,8 +92,8 @@ class LatentDT:
         This converts s_rules:str to rules:list[Rule]
         """
         results = []
-        working = self.s_rules.strip((" ", "{", "}")).split(",")
-
+        working = self.s_rules.translate(None, " {}").split(",")
+        print(working)
         for my_rule in working:
             print(my_rule)
 
