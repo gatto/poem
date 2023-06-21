@@ -116,13 +116,13 @@ class LatentDT:
         """
         results = []
         print(f"pre work: {self.s_counterrules}")
-        if self.s_counterrules:
-            # str.maketrans's third argument indicates characters to remove with str.translate(•)
-            all_rules = self.s_counterrules.translate(
-                str.maketrans("", "", "{} ")
-            ).split(",")
-            print(all_rules)
+        # str.maketrans's third argument indicates characters to remove with str.translate(•)
+        all_rules = self.s_counterrules.translate(str.maketrans("", "", "{} ")).split(
+            ","
+        )
+        print(all_rules)
 
+        if all_rules:
             for my_rule in all_rules:
                 print(my_rule)
                 parts = my_rule.split("-->")
