@@ -96,7 +96,7 @@ class LatentDT:
         print(working)
         for my_rule in working:
             print(my_rule)
-
+        exit(1)
         return results
 
     @counterrules.default
