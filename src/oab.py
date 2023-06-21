@@ -132,10 +132,13 @@ class TestPoint:
     def _latent_default(self):
         # encodes the TestPoint.a to build TestPoint.Latent.a
         mtda = get_dataset_metadata()
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
         print(self.a)
         print(np.expand_dims(self.a, axis=0))
         print(f"self.a.shape {self.a.shape}")
         print(f"self.a.expanded_dims.shape {np.expand_dims(self.a, axis=0).shape}")
+        print(f"x_test shape: {X_test.shape}")
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
             np.expand_dims(self.a, axis=0),
             mtda["ae_name"],
