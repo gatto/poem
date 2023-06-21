@@ -8,7 +8,7 @@ from pathlib import Path
 mtda = get_dataset_metadata()
 
 print(mtda["path_aemodels"])
-print(Path(mtda["path_aemodels"]).exists)
+print(Path(mtda["path_aemodels"]).exists())
 
 
 
