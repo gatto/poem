@@ -10,9 +10,9 @@ import keras.backend as K
 import numpy as np
 import sklearn
 import sklearn_json as skljson
-from abele.exputil import get_autoencoder
+# from abele.exputil import get_autoencoder
 from attrs import define, field, validators
-from mnist import get_data, get_dataset_metadata, run_explain
+from mnist import get_autoencoder, get_data, get_dataset_metadata, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
