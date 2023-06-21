@@ -141,7 +141,6 @@ class LatentDT:
             )
 
         print(results)
-        exit(1)
 
         return results
 
