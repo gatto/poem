@@ -147,7 +147,10 @@ class TestPoint:
         )
         ae.load_model()
 
-        return Latent(a=ae.encode(self.a))
+        miao =ae.encode(np.expand_dims(self.a, axis=0))
+        print(f"miao shape: {miao.shape}")
+        print(f"miao[0] shape: {miao[0].shape}")
+        return Latent(a=miao[0])
 
     @classmethod
     def generate_test(cls):
