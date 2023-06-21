@@ -92,12 +92,13 @@ class LatentDT:
         This converts s_rules:str to rules:list[Rule]
         """
         results = []
-        print(f"pre work: {self.s_rules}")
+        """print(f"pre work: {self.s_rules}")
         working = self.s_rules.translate(str.maketrans("", "", "{} ")).split(",")
         print(working)
         for my_rule in working:
             print(my_rule)
         exit(1)
+        """
         return results
 
     @counterrules.default
@@ -106,6 +107,14 @@ class LatentDT:
         This converts s_counterrules:str to counterrules:list[Rule]
         """
         results = []
+        print(f"pre work: {self.s_counterrules}")
+        working = self.s_counterrules.translate(str.maketrans("", "", "{} ")).split(",")
+        print(working)
+
+        for my_rule in working:
+            print(my_rule)
+
+        exit(1)
 
         return results
 
