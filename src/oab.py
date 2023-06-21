@@ -109,12 +109,15 @@ class LatentDT:
         """
         results = []
         print(f"pre work: {self.s_counterrules}")
-        working = self.s_counterrules.translate(str.maketrans("", "", "{} ")).split(",")
-        print(working)
+        all_rules = self.s_counterrules.translate(str.maketrans("", "", "{} ")).split(",")
+        print(all_rules)
 
-        for my_rule in working:
+        for my_rule in all_rules:
             print(my_rule)
             print(Rule.operators)
+            parts = my_rule.split("-->")
+            print(parts)
+
 
         exit(1)
 
