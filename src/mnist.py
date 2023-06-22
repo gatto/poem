@@ -2,6 +2,7 @@ user_names = ["Fabio", "Carlo"]
 current_user = user_names[0]
 # current_user = user_names[1]    # <<<<------------
 
+import gc
 import json
 import logging
 import pickle
@@ -617,13 +618,35 @@ if __name__ == "__main__":
         results.close()
     # end black box training
 
-    # explain an image
+    # explain images
     elif run_options == "explain":
         try:
-            index_tr = int(sys.argv[2])
+            how_many = int(sys.argv[2])
         except IndexError:
-            index_tr = 156
+            raise Exception(
+                """possible runtime arguments are:
+                <how many images to explain>
+                example: python mnist.py explain 100
+                will explain 100 images not already explained"""
+            )
+
+        my_counter = 0
+        explanation_path = Path(get_dataset_metadata()["path_aemodels"]) / "explanation"
+
+        # check what I've already done
+        hey = {int(path.stem) for path in explanation_path.glob("*.pickle")}
+        max_i = max(hey)
 
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
-        run_explain(index_tr, X_tree, Y_tree)
-    # end explain an image
+
+        # do some more
+        for i in range(max_i + 1, max_i + 1 + how_many):
+            _ = run_explain(i, X_tree, Y_tree)
+            my_counter += 1
+            if my_counter % 10 == 0:
+                gc.collect()
+
+        print(
+            f"Explained instances from {max_i+1} to {max_i+how_many} amounting to {my_counter} instances."
+        )
+        # end explain an image

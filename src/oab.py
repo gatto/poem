@@ -70,9 +70,6 @@ class Rule:
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
 
-    def marginal_apply(latent=Latent, eps:float=0.01):
-        pass
-
 
 @define
 class Domain:
