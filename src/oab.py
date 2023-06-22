@@ -22,6 +22,7 @@ data_table_structure = (
     "id int",
     "a array",
     "latent array",
+    "margins array",
     "DTpredicted int",
     "DTmodel dictionary",
     "DTfidelity float",
@@ -172,8 +173,10 @@ class Latent:
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
     )
     # TODO
-    # margins: np.ndarray with feature, min, max
+    margins: np.ndarray
     # space: bool
+
+    # TODO: a validator for self.margins that checks that len(margins) == len(a)
 
 
 @define
@@ -197,6 +200,7 @@ class TreePoint:
     latentdt: LatentDT
     blackbox: Blackbox
     domain: Domain
+    boundaries: np.array
     # true_class: int  # index of classes, refers to Domain.classes
 
     def save(self):
@@ -208,6 +212,7 @@ class TreePoint:
             self.id,
             self.a,
             self.latent.a,
+            self.latent.margins,
             self.latentdt.predicted_class,
             self.latentdt.model_json,
             self.latentdt.fidelity,
@@ -448,7 +453,10 @@ def load(id: int) -> None | TreePoint:
             return TreePoint(
                 id=id,
                 a=row["a"],
-                latent=Latent(a=row["latent"]),
+                latent=Latent(
+                    a=row["latent"],
+                    margins=row["margins"],
+                ),
                 latentdt=LatentDT(
                     predicted_class=row["DTpredicted"],
                     model=rebuilt_dt,
@@ -598,7 +606,10 @@ if __name__ == "__main__":
             miao = TreePoint(
                 id=i,
                 a=point,
-                latent=Latent(a=tosave["limg"]),
+                latent=Latent(
+                    a=tosave["limg"],
+                    margins=tosave["neigh_bounding_box"].transpose(),
+                ),
                 latentdt=LatentDT(
                     predicted_class=tosave["dt_pred"],
                     model=tosave["dt"],
