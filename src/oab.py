@@ -200,7 +200,6 @@ class TreePoint:
     latentdt: LatentDT
     blackbox: Blackbox
     domain: Domain
-    boundaries: np.array
     # true_class: int  # index of classes, refers to Domain.classes
 
     def save(self):
