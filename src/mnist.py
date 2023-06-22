@@ -301,6 +301,7 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         "fidelity": exp.fidelity,
         "limg": exp.limg,
         "dt": exp.dt,
+        "neigh_bounding_box": np.array([np.min(exp.Z, axis=0), np.max(exp.Z, axis=0)]),
     }
 
     with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
