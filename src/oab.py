@@ -70,6 +70,9 @@ class Rule:
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
 
+    def marginal_apply(latent=Latent, eps:float=0.01):
+        pass
+
 
 @define
 class Domain:
@@ -81,6 +84,8 @@ class LatentDT:
     predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
+    # TODO: in the finished code I'd like to set
+    # s_rules and s_counterrules to repr=False
     s_rules: str
     s_counterrules: str
     model_json: dict = field(
@@ -251,7 +256,7 @@ class TestPoint:
     @classmethod
     def generate_test(cls):
         """
-        can use TestPoint.generate_test to get a TestPoint usable for testing
+        can use TestPoint.generate_test() to get a TestPoint usable for testing
         (it's the point with id=0 in the sql db)
         """
         my_point = load(0)

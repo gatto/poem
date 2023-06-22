@@ -22,6 +22,7 @@ if __name__ == "__main__":
             understanding, delete-all, train-aae, train-bb, explain <index_image_to_explain>"""
         )
 
+Path("./data").mkdir(exist_ok=True)
 logging.basicConfig(
     filename="./data/mnist-oab.log",
     filemode="a",
