@@ -22,6 +22,7 @@ if __name__ == "__main__":
             understanding, delete-all, train-aae, train-bb, explain <index_image_to_explain>"""
         )
 
+Path("./data").mkdir(exist_ok=True)
 logging.basicConfig(
     filename="./data/mnist-oab.log",
     filemode="a",
@@ -131,6 +132,18 @@ def get_data(dataset: str = "mnist") -> tuple:
     Y_train = Y_train[~indexing_condition]
 
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
+
+
+def get_dataset_metadata() -> dict:
+    results = dict()
+    results["ae_name"] = "aae"
+    results["dataset"] = "mnist"
+
+    results[
+        "path_aemodels"
+    ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+
+    return results
 
 
 def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
@@ -465,6 +478,7 @@ if __name__ == "__main__":
         empty_folder("./data/aemodels/mnist/aae")
         empty_folder("./data/models")
         empty_folder("./data/results/bb")
+        empty_folder("./data/oab")
         empty_folder("./data")
         exit(0)
 
@@ -490,13 +504,14 @@ if __name__ == "__main__":
     elif run_options == "train-aae":
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
-        ae_name = "aae"
+        ae_name = get_dataset_metadata()["ae_name"]
+        dataset = get_dataset_metadata()["dataset"]
         batch_size = 256
         sample_interval = 200
 
         epochs = 10000  # g time intensive
 
-        path_aemodels = f"data/aemodels/{dataset}/{ae_name}/"
+        path_aemodels = get_dataset_metadata()["path_aemodels"]
 
         ae = get_autoencoder(X_train, ae_name, dataset, path_aemodels)
 

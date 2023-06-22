@@ -4,17 +4,19 @@ import pickle
 import sqlite3
 import sys
 from pathlib import Path
+from typing import ClassVar
 
+import abele
+import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
-from mnist import get_data, run_explain
+from mnist import get_autoencoder, get_data, get_dataset_metadata, run_explain
 from rich import print
 from rich.console import Console
 from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
-
 
 data_table_structure = (
     "id int",
@@ -23,14 +25,53 @@ data_table_structure = (
     "DTpredicted int",
     "DTmodel dictionary",
     "DTfidelity float",
-    "rules str",
-    "counterrules str",
+    "srules str",
+    "scounterrules str",
     "BBpredicted int",
     "classes str",
 )
 
-data_path = Path("./data")
-data_table_path = data_path / "treepoints.db"
+data_path = Path("./data/oab")
+data_table_path = data_path / "mnist.db"
+operators = [">=", "<=", ">", "<"]
+
+
+@define
+class Rule:
+    """
+    structure of a Rule:
+    feature:int  the latent feature the rules checks
+    operator:str  between the following choices:
+        - >
+        - >=
+        - <
+        - <=
+    value:float  the value of the latent feature
+    target_class:str the class this targets
+
+    methods:
+    .marginal_apply(Latent, eps=0.01)
+    returns a Latent object with the rule applied marginally
+    e.g. if the rule is 2 > 5.0
+    returns Latent with Latent.a feature 2 == 5 + eps
+    (regardless of what feature 2's value was in Latent)
+    **This should be useful for counterfactual image generation**
+
+    .respect(Latent)
+    returns a Latent object with the rule respected
+    on feature, but still varying the feature by **at least** some margin
+    **this is not the correct approach for factual generation**
+    """
+
+    feature: int
+    operator: str
+    value: float
+    # TODO: make target_class an index of Domain.classes again?
+    # remember to correct the rule/counterrules extraction in LatentDT
+    target_class: str
+
+    def marginal_apply(latent=Latent, eps:float=0.01):
+        pass
 
 
 @define
@@ -43,16 +84,84 @@ class LatentDT:
     predicted_class: int  # index of classes, refers to Domain.classes
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
-    rules: str
-    counterrules: str
+    # TODO: in the finished code I'd like to set
+    # s_rules and s_counterrules to repr=False
+    s_rules: str
+    s_counterrules: str
     model_json: dict = field(
         init=False,
         repr=lambda value: f"{type(value)}",
     )
+    rules: list[Rule] = field(init=False)
+    counterrules: list[Rule] = field(init=False)
 
     @model_json.default
     def _model_json_default(self):
         return skljson.to_dict(self.model)
+
+    @rules.default
+    def _rules_default(self):
+        """
+        This converts s_rules:str to rules:list[Rule]
+
+        REMEMBER THAT positive rules mean you're getting
+        the `target_class` by 'applying' **ALL** the positive rules.
+
+        THIS IS DIFFERENT THAN COUNTERRULES where you get the target_class
+        by falsifying only one of the counterrules.
+        """
+        results = []
+        # str.maketrans's third argument indicates characters to remove with str.translate(•)
+        all_rules = self.s_rules.translate(str.maketrans("", "", "{} "))
+        if all_rules:
+            all_rules = all_rules.split("-->")
+            print(all_rules)
+
+            target_class = all_rules[1][all_rules[1].find(":") + 1 :]
+
+            all_rules = all_rules[0].split(",")
+            for rule in all_rules:
+                for operator in operators:
+                    if operator in rule:
+                        rule = rule.split(operator)
+                        break
+                results.append(
+                    Rule(
+                        feature=int(rule[0]),
+                        operator=operator,
+                        value=float(rule[1]),
+                        target_class=target_class,
+                    )
+                )
+        return results
+
+    @counterrules.default
+    def _counterrules_default(self):
+        """
+        This converts s_counterrules:str to counterrules:list[Rule]
+        """
+        results = []
+        # str.maketrans's third argument indicates characters to remove with str.translate(•)
+        all_rules = self.s_counterrules.translate(str.maketrans("", "", "{} "))
+
+        if all_rules:
+            all_rules = all_rules.split(",")
+            for my_rule in all_rules:
+                parts = my_rule.split("-->")
+                parts[1] = parts[1][parts[1].find(":") + 1 :]
+                for operator in operators:
+                    if operator in parts[0]:
+                        parts[0] = parts[0].split(operator)
+                        break
+                results.append(
+                    Rule(
+                        feature=int(parts[0][0]),
+                        operator=operator,
+                        value=float(parts[0][1]),
+                        target_class=parts[1],
+                    )
+                )
+        return results
 
 
 @define
@@ -60,6 +169,7 @@ class Latent:
     """
     a: the record in latent representation
     """
+
     a: np.ndarray = field(
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
@@ -104,8 +214,8 @@ class TreePoint:
             self.latentdt.predicted_class,
             self.latentdt.model_json,
             self.latentdt.fidelity,
-            self.latentdt.rules,
-            self.latentdt.counterrules,
+            self.latentdt.s_rules,
+            self.latentdt.s_counterrules,
             self.blackbox.predicted_class,
             self.domain.classes,
         )
@@ -115,13 +225,164 @@ class TreePoint:
 
 
 @define
+class TestPoint:
+    a: np.ndarray = field(
+        validator=validators.instance_of(np.ndarray),
+        repr=lambda value: f"{type(value)}",
+    )
+    blackbox: Blackbox
+    domain: Domain
+    latent: Latent = field()
+
+    @latent.default
+    def _latent_default(self):
+        """
+        encodes the TestPoint.a to build TestPoint.Latent.a
+        """
+        mtda = get_dataset_metadata()
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+            np.expand_dims(self.a, axis=0),
+            mtda["ae_name"],
+            mtda["dataset"],
+            mtda["path_aemodels"],
+        )
+        ae.load_model()
+
+        miao = ae.encode(np.expand_dims(self.a, axis=0))
+        return Latent(a=miao[0])
+
+    @classmethod
+    def generate_test(cls):
+        """
+        can use TestPoint.generate_test() to get a TestPoint usable for testing
+        (it's the point with id=0 in the sql db)
+        """
+        my_point = load(0)
+        return cls(
+            a=my_point.a,
+            blackbox=Blackbox(predicted_class=my_point.blackbox.predicted_class),
+            domain=Domain(classes=my_point.domain.classes),
+        )
+
+
+@define
 class Explainer:
     """
     this is what oab.py returns when you ask an explanation
     """
 
+    testpoint: TestPoint
+    target: TreePoint = field(init=False)
+    counterfactuals: list[np.ndarray] = field(init=False)
+    factuals: list[np.ndarray] = field(init=False)
 
-def knn(a: np.ndarray) -> TreePoint:
+    @target.default
+    def _closest_neighbor_default(self) -> TreePoint:
+        return knn(self.testpoint)
+
+    @counterfactuals.default
+    def _counterfactuals_default(self):
+        print("Doing [green]counterfactuals[/]")
+        try:
+            # TODO: understand this
+            # what do i have?
+            # i have the treepoint from which to draw rules, crules
+            # i have said rules, crules
+            # i have the testpoint on which to apply rules, crules
+            cfactuals = get_counterfactual_prototypes(eps=0.01)
+            for rule in target.rules:
+                pass
+
+            for i, cpimg in enumerate(cfactuals):
+                bboc = bb_predict(np.array([cpimg]))[0]
+                plt.imshow(cpimg)
+                plt.title("cf - black box %s" % bboc)
+                plt.savefig(
+                    data_path / f"counter_{i}.png",
+                    dpi=150,
+                )
+        except:
+            print("very bad during counterfactuals")
+            exit(1)
+        print(f"I made #{i+1} counterfactuals.")
+        return "something xxx"
+
+    @factuals.default
+    def _factuals_default(self):
+        print("Doing [green]factuals[/]")
+        try:
+            # TODO: understand this
+            factuals = exp.get_prototypes_respecting_rule(num_prototypes=3)
+            for i, pimg in enumerate(factuals):
+                bbo = bb_predict(np.array([pimg]))[0]
+                if use_rgb:
+                    plt.imshow(pimg)
+                else:
+                    plt.imshow(pimg.astype("uint8"), cmap="gray")
+                plt.title(f"prototype {bbo}")
+                plt.savefig(
+                    data_path / f"factual_{i}.png",
+                    dpi=150,
+                )
+        except:
+            print("very bad during factuals")
+            exit(1)
+        print(f"I made #{i+1} factuals.")
+
+        return "something xxx"
+
+    @classmethod
+    def from_file(cls, my_path: Path):
+        """
+        This is the main method that should be exposed externally.
+        intended usage:
+
+        from oab import Explainer
+        explanation = Explainer.from_file(<path_to_image>)
+
+        the format of the Explainer object is still to be defined (TODO)
+
+        TODO: structure of this method is
+        1. create a TestPoint from file in my_path
+        2. explain somehow
+        3. generate Explainer which will contain TestPoint
+        """
+
+        return cls()
+
+    @classmethod
+    def get_counterfactual_prototypes(cls, eps=0.01, interp=0):
+        cprototypes = list()
+        for delta in self.deltas:
+            limg_new = self.limg.copy()
+            for p in delta:
+                if p.op == ">":
+                    limg_new[p.att] = p.thr + eps
+                else:
+                    limg_new[p.att] = p.thr - eps
+
+            img_new = self.autoencoder.decode(limg_new.reshape(1, -1))[0]
+            cprototypes.append(img_new)
+
+        return cprototypes
+
+    @classmethod
+    def _expl(cls, a: np.ndarray):
+        """
+        this is the private funct that actually explains
+        TODO: should this be here or in TestPoint?
+        """
+
+        pass
+
+
+def decode_rules(str) -> list[Rule]:
+    pass
+
+
+def knn(point: TestPoint) -> TreePoint:
     """
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
@@ -135,7 +396,7 @@ def knn(a: np.ndarray) -> TreePoint:
     # I train this on the np.ndarray latent repr of the points,
     neigh.fit(latent_arrays)
 
-    fitted_model = neigh.kneighbors([a])
+    fitted_model = neigh.kneighbors([point.latent.a])
     # if I need the distance it's here…
     distance: np.float64 = fitted_model[0][0][0]
     index: np.int64 = fitted_model[1][0][0]
@@ -195,8 +456,8 @@ def load(id: int) -> None | TreePoint:
                     predicted_class=row["DTpredicted"],
                     model=rebuilt_dt,
                     fidelity=row["DTfidelity"],
-                    rules=row["rules"],
-                    counterrules=row["counterrules"],
+                    s_rules=row["srules"],
+                    s_counterrules=row["scounterrules"],
                 ),
                 blackbox=Blackbox(predicted_class=row["BBpredicted"]),
                 domain=Domain(classes=row["classes"]),
@@ -214,19 +475,6 @@ def load_all() -> list[TreePoint]:
     for i in list_all():
         results.append(load(i))
     return results
-
-
-def explain(my_path: Path) -> Explainer:
-    """
-    This is the main method that should be exposed externally.
-    intended usage:
-
-    import oab
-    explanation = oab.explain(<path_to_image>)
-
-    the format of the Explainer object is still to be defined (TODO)
-    """
-    pass
 
 
 def _data_table_structure_query() -> str:
@@ -340,7 +588,9 @@ if __name__ == "__main__":
         for i, point in enumerate(X_tree):
             try:
                 with open(
-                    data_path / f"aemodels/mnist/aae/explanation/{i}.pickle", "rb"
+                    Path(get_dataset_metadata()["path_aemodels"])
+                    / f"explanation/{i}.pickle",
+                    "rb",
                 ) as f:
                     tosave = pickle.load(f)
             except FileNotFoundError:
@@ -356,8 +606,8 @@ if __name__ == "__main__":
                     predicted_class=tosave["dt_pred"],
                     model=tosave["dt"],
                     fidelity=tosave["fidelity"],
-                    rules=str(tosave["rstr"]),
-                    counterrules=tosave["cstr"],
+                    s_rules=str(tosave["rstr"]),
+                    s_counterrules=tosave["cstr"],
                 ),
                 blackbox=Blackbox(predicted_class=tosave["bb_pred"]),
                 domain=Domain(classes="test xxx"),

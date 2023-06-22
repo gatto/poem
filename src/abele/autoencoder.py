@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import model_from_json
 
-
 def save(model, model_name, path):
     model_filename = '%s%s.json' % (path, model_name)
     weights_filename = '%s%s_weights.hdf5' % (path, model_name)

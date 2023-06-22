@@ -3,6 +3,7 @@ from datetime import datetime
 
 import keras.backend as K
 import numpy as np
+from abele.autoencoder import Autoencoder
 from keras.datasets import mnist
 from keras.layers import (
     Activation,
@@ -21,7 +22,6 @@ from keras.layers import (
 from keras.models import Model, Sequential
 from keras.optimizers import Adam
 from keras.utils import plot_model
-from abele.autoencoder import Autoencoder
 
 
 def sampling(args):

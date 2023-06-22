@@ -1,11 +1,11 @@
 # files copied pasted
 
 `autoencoders`
-- `oriadversarial` no changes
-- `oriautoencoder` no changes
+- `adversarial` no changes
+- `autoencoder` no changes
 
 `experiments`
-- `oriexputil`
+- `exputil`
     line 188 def get_autoencoder **was verbose=True**
 
 
