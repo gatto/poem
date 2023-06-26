@@ -156,9 +156,6 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     logger = logging.getLogger("mnist-oab")
     logging.warning(f"Start run_explain of {index_tr}")
 
-    NUM_IMAGES = len(X)
-    print(f"We have {NUM_IMAGES} images")
-
     class_values = ["%s" % i for i in range(len(np.unique(Y)))]
     print(f"Classes are: {class_values}")
 
@@ -246,7 +243,7 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         black_box, black_box_filename, use_rgb
     )  # g this loads bb to disk and returns 2 functs
 
-    Y_pred = bb_predict(X)
+    # Y_pred = bb_predict(X)
     # print(classification_report(Y, Y_pred))
 
     ae = get_autoencoder(
@@ -264,7 +261,6 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
 
     class_name = "class"
 
-    # g explainer was size = 1000
     explainer = ILOREM(
         bb_predict,
         class_name,
@@ -321,12 +317,10 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # this is temporary like the exit(0)
+    # this is temporary like the return following
     notify_task(current_user, good=True, task=f"explanation of {index_tr}")
 
     return tosave
-
-    exit(0)  # xxx this will change probably?
 
     # xxx continue checking from here
     task = "get_counterfactual_prototypes"
@@ -649,4 +643,4 @@ if __name__ == "__main__":
         print(
             f"Explained instances from {max_i+1} to {max_i+how_many} amounting to {my_counter} instances."
         )
-        # end explain an image
+        # end explain images
