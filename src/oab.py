@@ -36,6 +36,14 @@ data_path = Path("./data/oab")
 data_table_path = data_path / "mnist.db"
 operators = [">=", "<=", ">", "<"]
 
+# TODO: class Predicate anziché Rule mantengo l'attributo "is_continuous"
+# e class Rule diventa l'intero insieme di predicate da rispettare e/o falsificare
+# TODO: rendere eps / 10 * numero random
+# in modo da poter avere multipli controesemplari diversi
+# TODO: eps non può essere numero statico ma deve confrontarsi con varianza della distribuzione tree_set
+# TODO: trovare un modo più semplice possibile per la generazione dei prototipi positivi accantonando
+# il metodo di abele per la generazione.
+# ad esempio: ho un array [1, 2, 5, 3] ci aggiungo un epsilon nella direzione delle regole positive (rispettandole quindi)
 
 @define
 class Rule:
@@ -67,6 +75,7 @@ class Rule:
     feature: int
     operator: str
     value: float
+    is_continuous: bool
     # TODO: make target_class an index of Domain.classes again?
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
