@@ -36,7 +36,7 @@ data_path = Path("./data/oab")
 data_table_path = data_path / "mnist.db"
 operators = [">=", "<=", ">", "<"]
 
-# TODO: class Predicate anziché Rule mantengo l'attributo "is_continuous"
+# TODO: class Condition anziché Rule mantengo l'attributo "is_continuous"
 # e class Rule diventa l'intero insieme di predicate da rispettare e/o falsificare
 # TODO: rendere eps / 10 * numero random
 # in modo da poter avere multipli controesemplari diversi
@@ -75,7 +75,7 @@ class Rule:
     feature: int
     operator: str
     value: float
-    is_continuous: bool
+    # is_continuous: bool TODO: add this
     # TODO: make target_class an index of Domain.classes again?
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
