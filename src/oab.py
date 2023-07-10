@@ -122,7 +122,6 @@ class LatentDT:
         all_rules = self.s_rules.translate(str.maketrans("", "", "{} "))
         if all_rules:
             all_rules = all_rules.split("-->")
-            print(all_rules)
 
             target_class = all_rules[1][all_rules[1].find(":") + 1 :]
 
