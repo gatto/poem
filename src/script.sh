@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/bash
 
 cd ~/repos/tesi
 source venv/bin/activate
