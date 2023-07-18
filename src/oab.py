@@ -277,9 +277,9 @@ class ImageExplanation:
         )
         ae.load_model()
 
-        miao = ae.decode(np.expand_dims(self.latent.a, axis=0))
-        print(miao)
-        return miao[0]
+        miao = ae.decode(np.expand_dims(self.latent.a, axis=0))[0]
+        print(miao.shape)
+        return miao
 
 
 @define
@@ -404,8 +404,8 @@ class Explainer:
             if self.save:
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"counterfactual - black box predicted class: {point.blackbox.predicted_class}"
-                )
+                    f"counterfactual - black box predicted class: xxx"
+                )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
             results.append(point)
@@ -425,8 +425,8 @@ class Explainer:
             if self.save:
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"factual - black box predicted class: {point.blackbox.predicted_class}"
-                )
+                    f"factual - black box predicted class: xxx"
+                )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
             results.append(point)
