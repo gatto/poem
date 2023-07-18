@@ -248,19 +248,18 @@ class TestPoint:
 
     def marginal_apply(self, rule: Rule, eps=0.01):
         """
-        is used to apply Rule on a TestPoint object, modifying its Latent.a
+        is used to apply Rule on a new TestPoint object, modifying its Latent.a
         TODO: eps possibly belonging to Domain? Must calculate it feature
         by feature or possible to have one eps for entire domain?
         """
-        print(type(self.latent.a))
-        print(f"latent.a[0]: {self.latent.a[0]}")
         value_to_overwrite = (
             rule.value + eps if rule.operator in geq else rule.value - eps
         )
 
-        self.latent.a[rule.feature] = value_to_overwrite
-        print(f"type self: {type(self)}\nself: {self}")
-        return self
+        new_point = self.copy()
+        new_point.latent.a[rule.feature] = value_to_overwrite
+        print(f"new_point: {new_point}")
+        return new_point
 
     @latent.default
     def _latent_default(self):
@@ -294,7 +293,10 @@ class TestPoint:
             domain=Domain(classes=my_point.domain.classes),
         )
 
-
+@define
+class ImageExplanation:
+    image: np.ndarray
+    blackbox: Blackbox
 
 
 @define
@@ -303,13 +305,15 @@ class Explainer:
     this is what oab.py returns when you ask an explanation
 
     testpoint: an input point to explain
+    save: whether to save generated exemplars to data_path (for testing purposes)
     target: the TreePoint most similar to testpoint
     """
 
     testpoint: TestPoint
+    save: bool = field(default=False)
     target: TreePoint = field(init=False)
-    counterfactuals: list[np.ndarray] = field(init=False)
-    factuals: list[np.ndarray] = field(init=False)
+    counterfactuals: list[ImageExplanation] = field(init=False)
+    factuals: list[ImageExplanation] = field(init=False)
 
     @target.default
     def _target_default(self) -> TreePoint:
@@ -317,9 +321,10 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self):
-        print("Doing [green]counterfactuals[/]")
+        print("Doing [red]counterfactuals[/]")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
+        results = []
 
         try:
             # TODO: understand this
@@ -328,47 +333,33 @@ class Explainer:
             # i have said rules, crules
             # i have the testpoint on which to apply rules, crules
 
-            cfactuals = get_counterfactual_prototypes(eps=0.01)
-            for rule in target.rules:
-                pass
+            for i, rule in enumerate(self.target.latentdt.counterrules):
+                image: np.ndarray = self.testpoint.marginal_apply(rule)
+                results.append(ImageExplanation(image, None)) # TODO: insert predicted class
+                if self.save:
+                    plt.imshow(image.astype("uint8"), cmap="gray")
+                    plt.title(f"counterfactual - black box {None}") # TODO: insert predicted class
+                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
-            for i, cpimg in enumerate(cfactuals):
-                bboc = bb_predict(np.array([cpimg]))[0]
-                plt.imshow(cpimg)
-                plt.title("cf - black box %s" % bboc)
-                plt.savefig(
-                    data_path / f"counter_{i}.png",
-                    dpi=150,
-                )
         except Exception as e:
             print(f"very bad during counterfactuals: {e}")
             exit(1)
         print(f"I made #{i+1} counterfactuals.")
-        return "something xxx"
+        return results
 
     @factuals.default
     def _factuals_default(self):
         print("Doing [green]factuals[/]")
+        results = []
+
         try:
-            # TODO: understand this
-            factuals = exp.get_prototypes_respecting_rule(num_prototypes=3)
-            for i, pimg in enumerate(factuals):
-                bbo = bb_predict(np.array([pimg]))[0]
-                if use_rgb:
-                    plt.imshow(pimg)
-                else:
-                    plt.imshow(pimg.astype("uint8"), cmap="gray")
-                plt.title(f"prototype {bbo}")
-                plt.savefig(
-                    data_path / f"factual_{i}.png",
-                    dpi=150,
-                )
-        except:
-            print("very bad during factuals")
+            pass
+        except Exception as e:
+            print(f"very bad during factuals: {e}")
             exit(1)
         print(f"I made #{i+1} factuals.")
 
-        return "something xxx"
+        return results
 
     @classmethod
     def from_file(cls, my_path: Path):
