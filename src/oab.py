@@ -1,3 +1,4 @@
+import copy
 import io
 import json
 import pickle
@@ -256,7 +257,7 @@ class TestPoint:
             rule.value + eps if rule.operator in geq else rule.value - eps
         )
 
-        new_point = self.copy()
+        new_point = copy.deepcopy(self)
         new_point.latent.a[rule.feature] = value_to_overwrite
         print(f"new_point: {new_point}")
         return new_point
