@@ -35,6 +35,7 @@ data_table_structure = (
 data_path = Path("./data/oab")
 data_table_path = data_path / "mnist.db"
 operators = [">=", "<=", ">", "<"]
+geq = {">=", ">"}
 
 # TODO: class Condition anziché Rule mantengo l'attributo "is_continuous"
 # e class Rule diventa l'intero insieme di predicate da rispettare e/o falsificare
@@ -44,6 +45,7 @@ operators = [">=", "<=", ">", "<"]
 # TODO: trovare un modo più semplice possibile per la generazione dei prototipi positivi accantonando
 # il metodo di abele per la generazione.
 # ad esempio: ho un array [1, 2, 5, 3] ci aggiungo un epsilon nella direzione delle regole positive (rispettandole quindi)
+
 
 @define
 class Rule:
@@ -69,7 +71,6 @@ class Rule:
     .respect(Latent)
     returns a Latent object with the rule respected
     on feature, but still varying the feature by **at least** some margin
-    **this is not the correct approach for factual generation**
     """
 
     feature: int
@@ -79,6 +80,8 @@ class Rule:
     # TODO: make target_class an index of Domain.classes again?
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
+
+
 
 
 @define
@@ -243,6 +246,22 @@ class TestPoint:
     domain: Domain
     latent: Latent = field()
 
+    def marginal_apply(self, rule: Rule, eps=0.01):
+        """
+        is used to apply Rule on a TestPoint object, modifying its Latent.a
+        TODO: eps possibly belonging to Domain? Must calculate it feature
+        by feature or possible to have one eps for entire domain?
+        """
+        print(type(self.latent.a))
+        print(f"latent.a[0]: {self.latent.a[0]}")
+        value_to_overwrite = (
+            rule.value + eps if rule.operator in geq else rule.value - eps
+        )
+
+        self.latent.a[rule.feature] = value_to_overwrite
+        print(f"type self: {type(self)}\nself: {self}")
+        return self
+
     @latent.default
     def _latent_default(self):
         """
@@ -276,10 +295,15 @@ class TestPoint:
         )
 
 
+
+
 @define
 class Explainer:
     """
     this is what oab.py returns when you ask an explanation
+
+    testpoint: an input point to explain
+    target: the TreePoint most similar to testpoint
     """
 
     testpoint: TestPoint
@@ -288,18 +312,22 @@ class Explainer:
     factuals: list[np.ndarray] = field(init=False)
 
     @target.default
-    def _closest_neighbor_default(self) -> TreePoint:
+    def _target_default(self) -> TreePoint:
         return knn(self.testpoint)
 
     @counterfactuals.default
     def _counterfactuals_default(self):
         print("Doing [green]counterfactuals[/]")
+        # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
+        # statistically *slightly* bigger than zero
+
         try:
             # TODO: understand this
             # what do i have?
             # i have the treepoint from which to draw rules, crules
             # i have said rules, crules
             # i have the testpoint on which to apply rules, crules
+
             cfactuals = get_counterfactual_prototypes(eps=0.01)
             for rule in target.rules:
                 pass
@@ -312,8 +340,8 @@ class Explainer:
                     data_path / f"counter_{i}.png",
                     dpi=150,
                 )
-        except:
-            print("very bad during counterfactuals")
+        except Exception as e:
+            print(f"very bad during counterfactuals: {e}")
             exit(1)
         print(f"I made #{i+1} counterfactuals.")
         return "something xxx"
