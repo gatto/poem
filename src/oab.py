@@ -4,6 +4,7 @@ import json
 import pickle
 import sqlite3
 import sys
+from collections import UserList
 from pathlib import Path
 from typing import ClassVar
 
@@ -60,18 +61,6 @@ class Rule:
         - <=
     value:float  the value of the latent feature
     target_class:str the class this targets
-
-    methods:
-    .marginal_apply(Latent, eps=0.01)
-    returns a Latent object with the rule applied marginally
-    e.g. if the rule is 2 > 5.0
-    returns Latent with Latent.a feature 2 == 5 + eps
-    (regardless of what feature 2's value was in Latent)
-    **This should be useful for counterfactual image generation**
-
-    .respect(Latent)
-    returns a Latent object with the rule respected
-    on feature, but still varying the feature by **at least** some margin
     """
 
     feature: int
@@ -83,6 +72,34 @@ class Rule:
     target_class: str
 
 
+@define
+class ComplexRule(UserList):
+    relevant_features: list[int] = field()
+
+    def remove(self, s=None):
+        raise RuntimeError("Deletion not allowed")
+
+    def pop(self, s=None):
+        raise RuntimeError("Deletion not allowed")
+
+    @relevant_features.default
+    def _relevant_features_default(self):
+        results = []
+        not_present = []
+
+        for rule in self:
+            # TODO: this is weird
+            if rule.operator in geq:
+                if rule.feature in not_present:
+                    results.append(rule.feature)
+                else:
+                    not_present.append(rule.feature)
+            elif rule.operator not in geq:
+                if rule.feature in not_present:
+                    results.append(rule.feature)
+                else:
+                    not_present.append(-rule.feature)
+        return results
 
 
 @define
@@ -249,7 +266,16 @@ class TestPoint:
 
     def marginal_apply(self, rule: Rule, eps=0.01):
         """
-        is used to apply Rule on a new TestPoint object, modifying its Latent.a
+        **Used for counterfactual image generation**
+
+        is used to apply marginally a Rule on a new TestPoint object,
+        modifying its Latent.a
+        Returns a TestPoint
+
+        e.g. if the rule is 2 > 5.0
+        returns a TestPoint with Latent.a[2] == 5.0 + eps
+        (regardless of what feature 2's value was in the original TestPoint)
+
         TODO: eps possibly belonging to Domain? Must calculate it feature
         by feature or possible to have one eps for entire domain?
         """
@@ -261,6 +287,19 @@ class TestPoint:
         new_point.latent.a[rule.feature] = value_to_overwrite
         print(f"new_point: {new_point}")
         return new_point
+
+    def perturb(self, rules: ComplexRule, eps=0.01):
+        """
+        returns a TestPoint object with the ComplexRule respected on its feature,
+        but still varying the feature by **at least** some margin
+        """
+
+        for rule in ComplexRule:
+            # TODO: now: this is the perturbation step, for each rule
+            value_to_overwrite = (
+                rule.value - eps if rule.operator in geq else rule.value + eps
+            )
+        return
 
     @latent.default
     def _latent_default(self):
@@ -294,6 +333,7 @@ class TestPoint:
             domain=Domain(classes=my_point.domain.classes),
         )
 
+
 @define
 class ImageExplanation:
     image: np.ndarray
@@ -322,7 +362,7 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self):
-        print("Doing [red]counterfactuals[/]")
+        print(f"Doing [red]counterfactuals[/] with target point id={self.target.id}")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
         results = []
@@ -336,10 +376,14 @@ class Explainer:
 
             for i, rule in enumerate(self.target.latentdt.counterrules):
                 image: np.ndarray = self.testpoint.marginal_apply(rule)
-                results.append(ImageExplanation(image, None)) # TODO: insert predicted class
+                results.append(
+                    ImageExplanation(image, None)
+                )  # TODO: insert predicted class
                 if self.save:
                     plt.imshow(image.astype("uint8"), cmap="gray")
-                    plt.title(f"counterfactual - black box {None}") # TODO: insert predicted class
+                    plt.title(
+                        f"counterfactual - black box {None}"
+                    )  # TODO: insert predicted class
                     plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
         except Exception as e:
@@ -353,8 +397,19 @@ class Explainer:
         print("Doing [green]factuals[/]")
         results = []
 
+        # TODO: fix this - this does counterfactuals, not factuals.
         try:
-            pass
+            for i, rule in enumerate(self.target.latentdt.rules):
+                image: np.ndarray = self.testpoint.marginal_apply(rule)
+                results.append(
+                    ImageExplanation(image, None)
+                )  # TODO: insert predicted class
+                if self.save:
+                    plt.imshow(image.astype("uint8"), cmap="gray")
+                    plt.title(
+                        f"counterfactual - black box {None}"
+                    )  # TODO: insert predicted class
+                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
         except Exception as e:
             print(f"very bad during factuals: {e}")
             exit(1)
