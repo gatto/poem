@@ -184,7 +184,7 @@ class Latent:
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
     )
     # TODO
-    margins: np.ndarray
+    margins: np.ndarray | None
     # space: bool
 
     # TODO: a validator for self.margins that checks that len(margins) == len(a)
@@ -279,7 +279,7 @@ class TestPoint:
         ae.load_model()
 
         miao = ae.encode(np.expand_dims(self.a, axis=0))
-        return Latent(a=miao[0])
+        return Latent(a=miao[0], margins=None)
 
     @classmethod
     def generate_test(cls):
