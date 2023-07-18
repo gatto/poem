@@ -270,7 +270,7 @@ class ImageExplanation:
         mtda = get_dataset_metadata()
 
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(load(0).latent.a, axis=0),
+            np.expand_dims(load(0).a, axis=0),
             mtda["ae_name"],
             mtda["dataset"],
             mtda["path_aemodels"],
