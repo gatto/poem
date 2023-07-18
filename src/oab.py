@@ -266,7 +266,7 @@ class ImageExplanation:
     a: np.ndarray = field(init=False)
 
     @a.default
-    def _real_space_default(self):
+    def _a_default(self):
         mtda = get_dataset_metadata()
 
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
@@ -278,7 +278,6 @@ class ImageExplanation:
         ae.load_model()
 
         miao = ae.decode(np.expand_dims(self.latent.a, axis=0))[0]
-        print(miao.shape)
         return miao
 
 
@@ -338,7 +337,6 @@ class TestPoint:
         encodes the TestPoint.a to build TestPoint.Latent.a
         """
         mtda = get_dataset_metadata()
-        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
             np.expand_dims(self.a, axis=0),
@@ -348,8 +346,8 @@ class TestPoint:
         )
         ae.load_model()
 
-        miao = ae.encode(np.expand_dims(self.a, axis=0))
-        return Latent(a=miao[0], margins=None)
+        miao = ae.encode(np.expand_dims(self.a, axis=0))[0]
+        return Latent(a=miao, margins=None)
 
     @classmethod
     def generate_test(cls):
