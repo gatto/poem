@@ -255,6 +255,34 @@ class TreePoint:
 
 
 @define
+class ImageExplanation:
+    """
+    The main purpose of this is to automate the decoding of the latent.a:np.ndarray
+    into an a:np.ndarray in the real space
+    """
+
+    latent: Latent
+    blackbox: Blackbox  # TODO: insert predicted class
+    a: np.ndarray = field(init=False)
+
+    @a.default
+    def _real_space_default(self):
+        mtda = get_dataset_metadata()
+
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+            np.expand_dims(load(0).latent.a, axis=0),
+            mtda["ae_name"],
+            mtda["dataset"],
+            mtda["path_aemodels"],
+        )
+        ae.load_model()
+
+        miao = ae.decode(np.expand_dims(self.latent.a, axis=0))
+        print(miao)
+        return miao[0]
+
+
+@define
 class TestPoint:
     a: np.ndarray = field(
         validator=validators.instance_of(np.ndarray),
@@ -264,7 +292,7 @@ class TestPoint:
     domain: Domain
     latent: Latent = field()
 
-    def marginal_apply(self, rule: Rule, eps=0.01):
+    def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
         """
         **Used for counterfactual image generation**
 
@@ -283,7 +311,10 @@ class TestPoint:
             rule.value + eps if rule.operator in geq else rule.value - eps
         )
 
-        new_point = copy.deepcopy(self)
+        # THIS IS THE IMAGEEXPLANATION GENERATION
+        new_point = ImageExplanation(
+            latent=Latent(a=self.latent.a, margins=None), blackbox=None
+        )
         new_point.latent.a[rule.feature] = value_to_overwrite
         print(f"new_point: {new_point}")
         return new_point
@@ -335,29 +366,6 @@ class TestPoint:
 
 
 @define
-class ImageExplanation:
-    latent_a: np.ndarray
-    blackbox: Blackbox
-    a: np.ndarray = field(init=False)
-
-    @a.default
-    def _real_space_default(self):
-        mtda = get_dataset_metadata()
-
-        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(load(0).latent.a, axis=0),
-            mtda["ae_name"],
-            mtda["dataset"],
-            mtda["path_aemodels"],
-        )
-        ae.load_model()
-
-        miao = ae.decode(np.expand_dims(self.latent_a, axis=0))
-        print(miao)
-        return miao[0]
-
-
-@define
 class Explainer:
     """
     this is what oab.py returns when you ask an explanation
@@ -384,28 +392,24 @@ class Explainer:
         # statistically *slightly* bigger than zero
         results = []
 
-        try:
-            # TODO: understand this
-            # what do i have?
-            # i have the treepoint from which to draw rules, crules
-            # i have said rules, crules
-            # i have the testpoint on which to apply rules, crules
+        # TODO: understand this
+        # what do i have?
+        # i have the treepoint from which to draw rules, crules
+        # i have said rules, crules
+        # i have the testpoint on which to apply rules, crules
 
-            for i, rule in enumerate(self.target.latentdt.counterrules):
-                latent_image: np.ndarray = self.testpoint.marginal_apply(rule)
+        for i, rule in enumerate(self.target.latentdt.counterrules):
+            point: ImageExplanation = self.testpoint.marginal_apply(rule)
 
-                miao = ImageExplanation(latent_a=latent_image, blackbox=None)
+            if self.save:
+                plt.imshow(point.a.astype("uint8"), cmap="gray")
+                plt.title(
+                    f"counterfactual - black box predicted class: {point.blackbox.predicted_class}"
+                )
+                plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
-                results.append(miao)  # TODO: insert predicted class
-                if self.save:
-                    plt.imshow(miao.a.astype("uint8"), cmap="gray")
-                    plt.title(
-                        f"counterfactual - black box {None}"
-                    )  # TODO: insert predicted class
-                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
-        except Exception as e:
-            print(f"very bad during counterfactuals: {e}")
-            exit(1)
+            results.append(point)
+
         print(f"I made #{i+1} counterfactuals.")
         return results
 
@@ -415,22 +419,18 @@ class Explainer:
         results = []
 
         # TODO: fix this - this does counterfactuals, not factuals.
-        try:
-            for i, rule in enumerate(self.target.latentdt.rules):
-                latent_image: np.ndarray = self.testpoint.marginal_apply(rule)
+        for i, rule in enumerate(self.target.latentdt.rules):
+            point: ImageExplanation = self.testpoint.marginal_apply(rule)
 
-                miao = ImageExplanation(latent_a=latent_image, blackbox=None)
+            if self.save:
+                plt.imshow(point.a.astype("uint8"), cmap="gray")
+                plt.title(
+                    f"factual - black box predicted class: {point.blackbox.predicted_class}"
+                )
+                plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-                results.append(miao)  # TODO: insert predicted class
-                if self.save:
-                    plt.imshow(miao.a.astype("uint8"), cmap="gray")
-                    plt.title(
-                        f"factual - black box {None}"
-                    )  # TODO: insert predicted class
-                    plt.savefig(data_path / f"fact_{i}.png", dpi=150)
-        except Exception as e:
-            print(f"very bad during factuals: {e}")
-            exit(1)
+            results.append(point)
+
         print(f"I made #{i+1} factuals.")
         return results
 
@@ -452,22 +452,6 @@ class Explainer:
         """
 
         return cls()
-
-    @classmethod
-    def get_counterfactual_prototypes(cls, eps=0.01, interp=0):
-        cprototypes = list()
-        for delta in self.deltas:
-            limg_new = self.limg.copy()
-            for p in delta:
-                if p.op == ">":
-                    limg_new[p.att] = p.thr + eps
-                else:
-                    limg_new[p.att] = p.thr - eps
-
-            img_new = self.autoencoder.decode(limg_new.reshape(1, -1))[0]
-            cprototypes.append(img_new)
-
-        return cprototypes
 
     @classmethod
     def _expl(cls, a: np.ndarray):
