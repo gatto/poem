@@ -380,7 +380,7 @@ class Explainer:
                     ImageExplanation(image, None)
                 )  # TODO: insert predicted class
                 if self.save:
-                    plt.imshow(image.astype("uint8"), cmap="gray")
+                    plt.imshow(image.a.astype("uint8"), cmap="gray")
                     plt.title(
                         f"counterfactual - black box {None}"
                     )  # TODO: insert predicted class
@@ -405,7 +405,7 @@ class Explainer:
                     ImageExplanation(image, None)
                 )  # TODO: insert predicted class
                 if self.save:
-                    plt.imshow(image.astype("uint8"), cmap="gray")
+                    plt.imshow(image.a.astype("uint8"), cmap="gray")
                     plt.title(
                         f"counterfactual - black box {None}"
                     )  # TODO: insert predicted class
