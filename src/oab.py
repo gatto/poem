@@ -291,6 +291,24 @@ class TestPoint:
     domain: Domain
     latent: Latent = field()
 
+    @latent.default
+    def _latent_default(self):
+        """
+        encodes the TestPoint.a to build TestPoint.Latent.a
+        """
+        mtda = get_dataset_metadata()
+
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+            np.expand_dims(self.a, axis=0),
+            mtda["ae_name"],
+            mtda["dataset"],
+            mtda["path_aemodels"],
+        )
+        ae.load_model()
+
+        miao = ae.encode(np.expand_dims(self.a, axis=0))[0]
+        return Latent(a=miao, margins=None)
+
     def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
         """
         **Used for counterfactual image generation**
@@ -312,7 +330,7 @@ class TestPoint:
 
         # THIS IS THE IMAGEEXPLANATION GENERATION
         new_point = ImageExplanation(
-            latent=Latent(a=self.latent.a, margins=None), blackbox=None
+            latent=Latent(a=copy.deepcopy(self.latent.a), margins=None), blackbox=None
         )
         new_point.latent.a[rule.feature] = value_to_overwrite
         print(f"new_point: {new_point}")
@@ -330,24 +348,6 @@ class TestPoint:
                 rule.value - eps if rule.operator in geq else rule.value + eps
             )
         return
-
-    @latent.default
-    def _latent_default(self):
-        """
-        encodes the TestPoint.a to build TestPoint.Latent.a
-        """
-        mtda = get_dataset_metadata()
-
-        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(self.a, axis=0),
-            mtda["ae_name"],
-            mtda["dataset"],
-            mtda["path_aemodels"],
-        )
-        ae.load_model()
-
-        miao = ae.encode(np.expand_dims(self.a, axis=0))[0]
-        return Latent(a=miao, margins=None)
 
     @classmethod
     def generate_test(cls):
