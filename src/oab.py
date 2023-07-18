@@ -336,8 +336,25 @@ class TestPoint:
 
 @define
 class ImageExplanation:
-    image: np.ndarray
+    latent_a: np.ndarray
     blackbox: Blackbox
+    a: np.ndarray = field(init=False)
+
+    @a.default
+    def _real_space_default(self):
+        mtda = get_dataset_metadata()
+
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+            np.expand_dims(load(0).latent.a, axis=0),
+            mtda["ae_name"],
+            mtda["dataset"],
+            mtda["path_aemodels"],
+        )
+        ae.load_model()
+
+        miao = ae.decode(np.expand_dims(self.latent_a, axis=0))
+        print(miao)
+        return miao[0]
 
 
 @define
@@ -375,17 +392,17 @@ class Explainer:
             # i have the testpoint on which to apply rules, crules
 
             for i, rule in enumerate(self.target.latentdt.counterrules):
-                image: np.ndarray = self.testpoint.marginal_apply(rule)
-                results.append(
-                    ImageExplanation(image, None)
-                )  # TODO: insert predicted class
+                latent_image: np.ndarray = self.testpoint.marginal_apply(rule)
+
+                miao = ImageExplanation(latent_a=latent_image, blackbox=None)
+
+                results.append(miao)  # TODO: insert predicted class
                 if self.save:
-                    plt.imshow(image.a.astype("uint8"), cmap="gray")
+                    plt.imshow(miao.a.astype("uint8"), cmap="gray")
                     plt.title(
                         f"counterfactual - black box {None}"
                     )  # TODO: insert predicted class
                     plt.savefig(data_path / f"counter_{i}.png", dpi=150)
-
         except Exception as e:
             print(f"very bad during counterfactuals: {e}")
             exit(1)
@@ -400,12 +417,13 @@ class Explainer:
         # TODO: fix this - this does counterfactuals, not factuals.
         try:
             for i, rule in enumerate(self.target.latentdt.rules):
-                image: np.ndarray = self.testpoint.marginal_apply(rule)
-                results.append(
-                    ImageExplanation(image, None)
-                )  # TODO: insert predicted class
+                latent_image: np.ndarray = self.testpoint.marginal_apply(rule)
+
+                miao = ImageExplanation(latent_a=latent_image, blackbox=None)
+
+                results.append(miao)  # TODO: insert predicted class
                 if self.save:
-                    plt.imshow(image.a.astype("uint8"), cmap="gray")
+                    plt.imshow(miao.a.astype("uint8"), cmap="gray")
                     plt.title(
                         f"factual - black box {None}"
                     )  # TODO: insert predicted class
@@ -414,7 +432,6 @@ class Explainer:
             print(f"very bad during factuals: {e}")
             exit(1)
         print(f"I made #{i+1} factuals.")
-
         return results
 
     @classmethod
