@@ -407,9 +407,9 @@ class Explainer:
                 if self.save:
                     plt.imshow(image.a.astype("uint8"), cmap="gray")
                     plt.title(
-                        f"counterfactual - black box {None}"
+                        f"factual - black box {None}"
                     )  # TODO: insert predicted class
-                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
+                    plt.savefig(data_path / f"fact_{i}.png", dpi=150)
         except Exception as e:
             print(f"very bad during factuals: {e}")
             exit(1)
