@@ -74,9 +74,9 @@ class Rule:
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
 
-
+@define
 class ComplexRule(UserList):
-    relevant_features: list[int]
+    my_bool: bool
 
     def remove(self, s=None):
         raise RuntimeError("Deletion not allowed")
@@ -433,18 +433,17 @@ class Explainer:
         print("Doing [green]factuals[/]")
         results = []
 
-        # TODO: fix this - this does counterfactuals, not factuals.
-        for i, rule in enumerate(self.target.latentdt.rules):
-            point: ImageExplanation = self.testpoint.marginal_apply(rule)
+        points: list[ImageExplanation] = self.testpoint.perturb(
+            self.target.latentdt.rules
+        )
 
-            if self.save:
+        if self.save:
+            for i, point in enumerate(points):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
                     f"factual - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
-
-            results.append(point)
 
         print(f"I made #{i+1} factuals.")
         return results
