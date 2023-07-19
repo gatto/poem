@@ -261,7 +261,7 @@ class Latent:
         for i, boundary in enumerate(self.margins):
             print(f"boundary[0]:{type(boundary[0])} = {boundary[0]}")
             print(f"boundary[1]:{type(boundary[1])} = {boundary[1]}")
-            if not (boundary[0] < test_point.latent.a < boundary[1]):
+            if test_point.latent.a < boundary[0] or test_point.latent.a > boundary[1]:
                 # if the feature in test is outside of the boundaries, return bad
                 return False
         return True
