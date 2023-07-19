@@ -107,7 +107,7 @@ class ComplexRule(UserList):
 
 @define
 class Domain:
-    classes: list[str]
+    classes: list[str] = field()
     aae = field(init=False)
 
     @aae.default
