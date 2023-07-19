@@ -81,6 +81,7 @@ class ComplexRule(UserList):
     def pop(self, s=None):
         raise RuntimeError("Deletion not allowed")
 
+
 """    @relevant_features.default
     def _relevant_features_default(self):
         results = []
@@ -100,6 +101,7 @@ class ComplexRule(UserList):
                     not_present.append(-rule.feature)
         return results
 """
+
 
 @define
 class Domain:
@@ -262,7 +264,10 @@ class ImageExplanation:
 
     latent: Latent
     blackbox: Blackbox  # TODO: insert predicted class
-    a: np.ndarray = field(init=False)
+    a: np.ndarray = field(
+        init=False,
+        repr=lambda value: f"{type(value)}",
+    )
 
     @a.default
     def _a_default(self):
