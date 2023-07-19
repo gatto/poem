@@ -141,8 +141,8 @@ class AAE:
 
 @define
 class Domain:
-    classes: list[str]
-    aae: AAE
+    classes: list[str] = field(default=classes_mnist)
+    aae: AAE = field(default=AAE())
 
 
 @define
