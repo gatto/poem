@@ -486,7 +486,7 @@ class Explainer:
             self.target.latentdt.rules
         )
 
-        i = 0
+        i = 0  # TODO: ??? delete?
         if self.save:
             for i, point in enumerate(points):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
@@ -495,7 +495,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        print(f"I made #{i+1} factuals.")
+        print(f"I made #{i+1} factuals.")  # TODO: ??? delete?
         return results
 
     @classmethod
