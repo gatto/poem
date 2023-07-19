@@ -486,6 +486,7 @@ class Explainer:
             self.target.latentdt.rules
         )
 
+        i = 0
         if self.save:
             for i, point in enumerate(points):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
