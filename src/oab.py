@@ -20,6 +20,7 @@ from rich.console import Console
 from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
 
+## CODE EXECUTED BEFORE LIBRARY DEFINITION
 classes_mnist = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 data_table_structure = (
     "id int",
@@ -122,10 +123,6 @@ class Domain:
         )
         ae.load_model()
         return ae
-
-
-my_domain = Domain(classes_mnist)
-print(dir(my_domain.aae))
 
 
 @define
@@ -648,11 +645,14 @@ cur = con.cursor()
 cur.execute("create table test (arr array)")
 """
 
+## CODE EXECUTED AFTER LIBRARY DEFINITION
 console = Console()
 sqlite3.register_adapter(np.ndarray, _adapt_array)
 sqlite3.register_converter("array", _convert_array)
 sqlite3.register_adapter(dict, lambda d: json.dumps(d).encode("utf8"))
 sqlite3.register_converter("dictionary", lambda d: json.loads(d.decode("utf8")))
+my_domain = Domain(classes_mnist)
+print(dir(my_domain.aae))
 
 
 if __name__ == "__main__":
