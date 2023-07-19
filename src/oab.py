@@ -115,8 +115,9 @@ class AAE:
     .encode(Point)
     .decode(Point)
     .discriminate(Point)
-    
+
     """
+
     model = field(init=False, repr=lambda value: f"{type(value)}")
 
     @model.default
@@ -254,13 +255,12 @@ class Latent:
 
     def __contains__(self, test_point) -> bool:
         """
+        ** used for poliedro check **
         returns True if test_point:TestPoint is in the margins of self (which will be a TreePoint)
         False otherwise
         """
 
         for i, boundary in enumerate(self.margins):
-            print(f"boundary[0]:{type(boundary[0])} = {boundary[0]}")
-            print(f"boundary[1]:{type(boundary[1])} = {boundary[1]}")
             if not (min(boundary) < test_point.latent.a[i] < max(boundary)):
                 # if the feature in test is outside of the boundaries, return bad
                 return False
@@ -517,6 +517,9 @@ def knn(point: TestPoint) -> TreePoint:
     points: list[TreePoint] = load_all()
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
     while True:
+        # this while loop's purpose is to continue looking for 1-nn sample points
+        # if the first sample point result `points[index]` is discarded because TestPoint
+        # is not in the sampled point's margins
         # TODO: ensure a stopping condition exists for this while loop
         neigh = NearestNeighbors(n_neighbors=1)
 
