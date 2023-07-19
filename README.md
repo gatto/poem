@@ -106,3 +106,34 @@ TreePoint
 - a
 
 Explainer
+
+## dir of `ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder()` object
+- 'alpha',
+- 'autoencoder',
+- 'build_decoder',
+- 'build_discriminator',
+- 'build_encoder',
+- 'decode',
+- 'decoder',
+- 'discriminate',
+- 'discriminator',
+- 'encode',
+- 'encoder',
+- 'fit',
+- 'generate',
+- 'generator',
+- 'hidden_dim',
+- 'img_denormalize',
+- 'img_normalize',
+- 'init',
+- 'input_dim',
+- 'latent_dim',
+- 'load_model',
+- 'name',
+- 'path',
+- 'sample_images',
+- 'save_graph',
+- 'save_model',
+- 'shape',
+- 'store_intermediate',
+- 'verbose'

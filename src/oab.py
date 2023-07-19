@@ -75,6 +75,7 @@ class Rule:
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
 
+
 @define
 class ComplexRule(UserList):
     my_bool: bool
@@ -108,12 +109,11 @@ class ComplexRule(UserList):
 
 
 @define
-class Domain:
-    classes: list[str] = field()
-    aae = field(init=False)
+class AAE:
+    model = field(init=False, repr=lambda value: f"{type(value)}")
 
-    @aae.default
-    def _aae_default(self):
+    @model.default
+    def _model_default(self):
         mtda = get_dataset_metadata()
 
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
@@ -124,6 +124,25 @@ class Domain:
         )
         ae.load_model()
         return ae
+
+    def discriminate(self, point) -> float:
+        """
+        pass a Point with latent.a
+        returns a probability:float
+        """
+        return self.model.discriminate(np.expand_dims(point.latent.a, axis=0))[0][0]
+
+    def encode(self, point):
+        return self.model.encode(np.expand_dims(point.a, axis=0))[0]
+
+    def decode(self, point):
+        return self.model.decode(np.expand_dims(point.latent.a, axis=0))[0]
+
+
+@define
+class Domain:
+    classes: list[str]
+    aae: AAE
 
 
 @define
@@ -305,8 +324,7 @@ class ImageExplanation:
         I generated a latent.a as either an exemplar or a counterexemplar,
         so now I have to decode it to get the real-space representation of the image
         """
-        miao = my_domain.aae.decode(np.expand_dims(self.latent.a, axis=0))[0]
-        return miao
+        return my_domain.aae.decode(self)
 
 
 @define
@@ -324,8 +342,7 @@ class TestPoint:
         """
         encodes the TestPoint.a to build TestPoint.Latent.a
         """
-        miao = my_domain.aae.encode(np.expand_dims(self.a, axis=0))[0]
-        return Latent(a=miao, margins=None)
+        return Latent(a=my_domain.aae.encode(self), margins=None)
 
     def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
         """
