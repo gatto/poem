@@ -226,9 +226,9 @@ class Latent:
 
     # TODO: a validator for self.margins that checks that len(margins) == len(a)
 
-    def __contains__(self, test_point: TestPoint) -> bool:
+    def __contains__(self, test_point) -> bool:
         """
-        returns True if test is in the margins of margin_point
+        returns True if test_point:TestPoint is in the margins of self (which will be a TreePoint)
         False otherwise
         """
 
