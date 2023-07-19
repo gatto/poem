@@ -228,6 +228,18 @@ class Latent:
 
     # TODO: a validator for self.margins that checks that len(margins) == len(a)
 
+    def __contains__(self, test_point: TestPoint) -> bool:
+        """
+        returns True if test is in the margins of margin_point
+        False otherwise
+        """
+
+        for i, boundary in enumerate(self.margins):
+            if not (boundary[0] < test_point.latent.a < boundary[1]):
+                # if the feature in test is outside of the boundaries, return bad
+                return False
+        return True
+
 
 @define
 class Blackbox:
@@ -472,18 +484,6 @@ class Explainer:
 def decode_rules(str) -> list[Rule]:
     pass
 
-def in_margins(test: TestPoint, margin_point: TreePoint) -> bool:
-    """
-    returns True if test is in the margins of margin_point
-    False otherwise
-    """
-
-    for i, boundary in enumerate(margin_point.latent.margins):
-        if not (boundary[0] < test.latent.a < boundary[1]):
-            # if the feature in test is outside of the boundaries, return bad
-            return False
-    return True
-
 
 def knn(point: TestPoint) -> TreePoint:
     """
@@ -506,7 +506,7 @@ def knn(point: TestPoint) -> TreePoint:
         index: np.int64 = fitted_model[1][0][0]
 
         # check the margins of the latent space (poliedro check)
-        if in_margins(test=point, margin_point=points[index]):
+        if point in points[index].latent:
             # if it's in the margins
             break
         else:
