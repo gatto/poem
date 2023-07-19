@@ -20,6 +20,7 @@ from rich.console import Console
 from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
 
+classes_mnist = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 data_table_structure = (
     "id int",
     "a array",
@@ -38,6 +39,7 @@ data_path = Path("./data/oab")
 data_table_path = data_path / "mnist.db"
 operators = [">=", "<=", ">", "<"]
 geq = {">=", ">"}
+
 
 # TODO: class Condition anziché Rule mantengo l'attributo "is_continuous"
 # e class Rule diventa l'intero insieme di predicate da rispettare e/o falsificare
@@ -106,6 +108,24 @@ class ComplexRule(UserList):
 @define
 class Domain:
     classes: list[str]
+    aae = field(init=False)
+
+    @aae.default
+    def _aae_default(self):
+        mtda = get_dataset_metadata()
+
+        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+            np.expand_dims(load(0).a, axis=0),
+            mtda["ae_name"],
+            mtda["dataset"],
+            mtda["path_aemodels"],
+        )
+        ae.load_model()
+        return ae
+
+
+my_domain = Domain(classes_mnist)
+print(dir(my_domain.aae))
 
 
 @define
@@ -271,18 +291,11 @@ class ImageExplanation:
 
     @a.default
     def _a_default(self):
-        mtda = get_dataset_metadata()
-
-        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(load(0).a, axis=0),
-            mtda["ae_name"],
-            mtda["dataset"],
-            mtda["path_aemodels"],
-        )
-        ae.load_model()
-
-        miao = ae.decode(np.expand_dims(self.latent.a, axis=0))[0]
-        del ae
+        """
+        I generated a latent.a as either an exemplar or a counterexemplar,
+        so now I have to decode it to get the real-space representation of the image
+        """
+        miao = my_domain.aae.decode(np.expand_dims(self.latent.a, axis=0))[0]
         return miao
 
 
@@ -301,18 +314,7 @@ class TestPoint:
         """
         encodes the TestPoint.a to build TestPoint.Latent.a
         """
-        mtda = get_dataset_metadata()
-
-        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(self.a, axis=0),
-            mtda["ae_name"],
-            mtda["dataset"],
-            mtda["path_aemodels"],
-        )
-        ae.load_model()
-
-        miao = ae.encode(np.expand_dims(self.a, axis=0))[0]
-        del ae
+        miao = my_domain.aae.encode(np.expand_dims(self.a, axis=0))[0]
         return Latent(a=miao, margins=None)
 
     def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
@@ -470,6 +472,18 @@ class Explainer:
 def decode_rules(str) -> list[Rule]:
     pass
 
+def in_margins(test: TestPoint, margin_point: TreePoint) -> bool:
+    """
+    returns True if test is in the margins of margin_point
+    False otherwise
+    """
+
+    for i, boundary in enumerate(margin_point.latent.margins):
+        if not (boundary[0] < test.latent.a < boundary[1]):
+            # if the feature in test is outside of the boundaries, return bad
+            return False
+    return True
+
 
 def knn(point: TestPoint) -> TreePoint:
     """
@@ -477,18 +491,30 @@ def knn(point: TestPoint) -> TreePoint:
     (in latent space representation)
     """
 
-    neigh = NearestNeighbors(n_neighbors=1)
-
     points: list[TreePoint] = load_all()
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
+    while True:
+        # TODO: ensure a stopping condition exists for this while loop
+        neigh = NearestNeighbors(n_neighbors=1)
 
-    # I train this on the np.ndarray latent repr of the points,
-    neigh.fit(latent_arrays)
+        # I train this on the np.ndarray latent repr of the points,
+        neigh.fit(latent_arrays)
 
-    fitted_model = neigh.kneighbors([point.latent.a])
-    # if I need the distance it's here…
-    distance: np.float64 = fitted_model[0][0][0]
-    index: np.int64 = fitted_model[1][0][0]
+        fitted_model = neigh.kneighbors([point.latent.a])
+        # if I need the distance it's here…
+        distance: np.float64 = fitted_model[0][0][0]
+        index: np.int64 = fitted_model[1][0][0]
+
+        # check the margins of the latent space (poliedro check)
+        if in_margins(test=point, margin_point=points[index]):
+            # if it's in the margins
+            break
+        else:
+            # otherwise, pop that point (don't need it)
+            # and start again
+            print("popped a point")
+            points.pop(index)
+            latent_arrays.pop(index)
 
     # I return the entire TreePoint though
     return points[index]
