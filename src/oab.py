@@ -402,13 +402,13 @@ class TestPoint:
         print(f"new_point: {new_point}")
         return new_point
 
-    def perturb(self, rules: ComplexRule, eps=0.01):
+    def perturb(self, complexrule: ComplexRule, eps=0.01):
         """
         returns a TestPoint object with the ComplexRule respected on its feature,
         but still varying the feature by **at least** some margin
         """
 
-        for rule in ComplexRule:
+        for rule in complexrule:
             # TODO: now: this is the perturbation step, for each rule
             value_to_overwrite = (
                 rule.value - eps if rule.operator in geq else rule.value + eps
