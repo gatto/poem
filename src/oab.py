@@ -22,6 +22,7 @@ from sklearn.neighbors import NearestNeighbors
 
 ## CODE EXECUTED BEFORE LIBRARY DEFINITION
 classes_mnist = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+example_record_mnist = np.zeros((28, 28, 3))
 data_table_structure = (
     "id int",
     "a array",
@@ -116,7 +117,7 @@ class Domain:
         mtda = get_dataset_metadata()
 
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(load(0).a, axis=0),
+            np.expand_dims(example_record_mnist, axis=0),
             mtda["ae_name"],
             mtda["dataset"],
             mtda["path_aemodels"],
