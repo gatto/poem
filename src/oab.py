@@ -72,9 +72,8 @@ class Rule:
     target_class: str
 
 
-@define
 class ComplexRule(UserList):
-    relevant_features: list[int] = field()
+    relevant_features: list[int]
 
     def remove(self, s=None):
         raise RuntimeError("Deletion not allowed")
@@ -82,7 +81,7 @@ class ComplexRule(UserList):
     def pop(self, s=None):
         raise RuntimeError("Deletion not allowed")
 
-    @relevant_features.default
+"""    @relevant_features.default
     def _relevant_features_default(self):
         results = []
         not_present = []
@@ -100,7 +99,7 @@ class ComplexRule(UserList):
                 else:
                     not_present.append(-rule.feature)
         return results
-
+"""
 
 @define
 class Domain:
@@ -278,6 +277,7 @@ class ImageExplanation:
         ae.load_model()
 
         miao = ae.decode(np.expand_dims(self.latent.a, axis=0))[0]
+        del ae
         return miao
 
 
@@ -307,6 +307,7 @@ class TestPoint:
         ae.load_model()
 
         miao = ae.encode(np.expand_dims(self.a, axis=0))[0]
+        del ae
         return Latent(a=miao, margins=None)
 
     def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
