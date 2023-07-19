@@ -76,9 +76,31 @@ class Rule:
     target_class: str
 
 
-@define
 class ComplexRule(UserList):
-    my_bool: bool
+    def __init__(self, iterable):
+        super().__init__(self._validate_item(item) for item in iterable)
+
+    def __setitem__(self, index, item):
+        self.data[index] = self._validate_item(item)
+
+    def insert(self, index, item):
+        self.data.insert(index, self._validate_item(item))
+
+    def append(self, item):
+        self.data.append(self._validate_item(item))
+
+    def extend(self, other):
+        if isinstance(other, type(self)):
+            self.data.extend(other)
+        else:
+            self.data.extend(self._validate_item(item) for item in other)
+
+    def _validate_item(self, value):
+        if isinstance(value, Rule):
+            return value
+        raise TypeError(
+            f"Rule expected, got {type(value).__name__}"
+        )
 
     def remove(self, s=None):
         raise RuntimeError("Deletion not allowed")
@@ -166,7 +188,7 @@ class LatentDT:
         init=False,
         repr=lambda value: f"{type(value)}",
     )
-    rules: list[Rule] = field(init=False)
+    rules: ComplexRule = field(init=False)
     counterrules: list[Rule] = field(init=False)
 
     @model_json.default
@@ -234,7 +256,7 @@ class LatentDT:
                         target_class=parts[1],
                     )
                 )
-        return results
+        return ComplexRule(results)
 
 
 @define
