@@ -110,6 +110,11 @@ class ComplexRule(UserList):
                 results.append(rule)
         return results
 
+    def __repr__(self) -> str:
+        return f"""ComplexRule(\n
+        {[str(x) for x in self]}
+        \n, features={self.features})"""
+
     def __setitem__(self, index, item):
         raise RuntimeError("Modification not allowed")
         # self.data[index] = self._validate_item(item)
