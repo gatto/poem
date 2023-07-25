@@ -82,39 +82,15 @@ class ComplexRule(UserList):
     .data - list of Rule
     .features - dictionary of features with the operators appearing in the ComplexRule
     """
+
     def __init__(self, iterable):
         super().__init__(self._validate_item(item) for item in iterable)
-        self._update_features()
-
-    def __setitem__(self, index, item):
-        self.data[index] = self._validate_item(item)
-        self._update_features()
-
-    def insert(self, index, item):
-        self.data.insert(index, self._validate_item(item))
-        self._update_features()
-
-    def append(self, item):
-        self.data.append(self._validate_item(item))
-        self._update_features()
-
-    def extend(self, other):
-        if isinstance(other, type(self)):
-            self.data.extend(other)
-        else:
-            self.data.extend(self._validate_item(item) for item in other)
         self._update_features()
 
     def _validate_item(self, value):
         if isinstance(value, Rule):
             return value
         raise TypeError(f"Rule expected, got {type(value).__name__}")
-
-    def remove(self, s=None):
-        raise RuntimeError("Deletion not allowed")
-
-    def pop(self, s=None):
-        raise RuntimeError("Deletion not allowed")
 
     def _update_features(self):
         results = {}
@@ -126,6 +102,45 @@ class ComplexRule(UserList):
             results[rule.feature].sort()
 
         self.features = results
+
+    def __getitem__(self, arg) -> list:
+        results = []
+        for rule in self:
+            if rule.feature == arg:
+                results.append(rule)
+        return results
+
+    def __setitem__(self, index, item):
+        raise RuntimeError("Modification not allowed")
+        # self.data[index] = self._validate_item(item)
+        # self._update_features()
+
+    def insert(self, index, item):
+        raise RuntimeError("Modification not allowed")
+        # self.data.insert(index, self._validate_item(item))
+        # self._update_features()
+
+    def append(self, item):
+        raise RuntimeError("Modification not allowed")
+
+        # self.data.append(self._validate_item(item))
+        # self._update_features()
+
+    def extend(self, other):
+        raise RuntimeError("Modification not allowed")
+
+        # if isinstance(other, type(self)):
+        #    self.data.extend(other)
+        # else:
+        #    self.data.extend(self._validate_item(item) for item in other)
+        # self._update_features()
+
+    def remove(self, s=None):
+        raise RuntimeError("Modification not allowed")
+
+    def pop(self, s=None):
+        raise RuntimeError("Modification not allowed")
+
 
 """    @relevant_features.default
     def _relevant_features_default(self):
@@ -274,7 +289,7 @@ class LatentDT:
                         target_class=parts[1],
                     )
                 )
-        return ComplexRule(results)
+        return results
 
 
 @define
