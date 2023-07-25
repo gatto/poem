@@ -451,6 +451,7 @@ def ranking_knn(
     print(results)
     print(type(results))
     print(type(results[0]))
+    print(f"shapes be damned {results[0].shape} {results[1].shape}")
     results = list(zip(results[0], results[1]))
     print("[purple]we zippin zippin")
     print(results)
