@@ -424,9 +424,12 @@ class TestPoint:
             failures_counter = 0
             while not generated:
                 # generate random record
+                # random.uniform gives variations on the eps value,
+                # random.randrange returns -1 or 1 randomly so the effect
+                # is to either subtract or add eps to value
                 generated_value = self.latent.a[feature_id] + eps * random.uniform(
                     0.1, 10
-                )
+                ) * random.randrange(-1, 1, 2)
 
                 # convalidate it
                 rules_satisfied = 0
