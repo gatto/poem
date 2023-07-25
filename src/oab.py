@@ -548,7 +548,7 @@ class Explainer:
             results.append(point)
 
         # take the last how_many points, last because I'd like the farthest points
-        ranking = ranking_knn(self.target, results)[-self.how_many :]
+        ranking = ranking_knn(self.target, results)[-self.howmany :]
 
         # take the index in the tuple(distance, index)
         indexes_to_take = [x[1] for x in ranking]
@@ -582,6 +582,17 @@ class Explainer:
         3. generate Explainer which will contain TestPoint
         """
 
+        return cls()
+
+    @classmethod
+    def from_array(cls, my_array: np.ndarray):
+        """
+        This is the main method that should be exposed externally.
+        intended usage:
+
+        from oab import Explainer
+        explanation = Explainer.from_file(<path_to_image>)
+        """
         return cls()
 
     @classmethod
