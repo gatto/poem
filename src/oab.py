@@ -84,7 +84,7 @@ class Segments:
     @features.default
     def _features_default(self):
         results = {}
-        for rule in self.data:
+        for rule in self.rules:
             try:
                 results[rule.feature].append(rule.operator)
             except KeyError:
