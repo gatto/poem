@@ -401,7 +401,7 @@ class TestPoint:
                 # old:
                 # generated_value = self.latent.a[feature_id] + eps * random.uniform(0.1, 10) * random.randrange(-1, 1, 2)
 
-                generated_value = random.gauss()
+                generated_value = random.gauss(mu=0.0, sigma=1.0)
 
                 # convalidate it
                 rules_satisfied = 0
