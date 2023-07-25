@@ -105,6 +105,7 @@ def _converter_complexrule(rules):
                 my_results[rule.feature].append(rule)
             except KeyError:
                 my_results[rule.feature] = [rule]
+        return my_results
 
 
 @define
