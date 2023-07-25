@@ -112,7 +112,7 @@ class ComplexRule(UserList):
 
     def __repr__(self) -> str:
         return f"""ComplexRule(\n
-        {[str(x) for x in self]}
+        {[str(x) for x in self.data]}
         \n, features={self.features})"""
 
     def __setitem__(self, index, item):
