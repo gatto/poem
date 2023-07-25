@@ -88,15 +88,6 @@ class Rule:
                 return True if my_value <= self.value else False
 
 
-@define(repr=False)
-class Segment:
-    features: dict = field(init=False)
-
-    @features.default
-    def _features_default(self):
-        pass
-
-
 def _converter_complexrule(rules):
     if type(rules) == list:
         my_results = {}
@@ -112,31 +103,12 @@ def _converter_complexrule(rules):
 class ComplexRule:
     """
     Has
-    .rules - dict of Rule
+    .rules - dict of Rule.
+    Key of the item is the feature number, in the latent space,
+    value of the dict is a list with all Rule objects operating on that feature.
     """
 
     rules = field(converter=_converter_complexrule)
-
-
-"""    @relevant_features.default
-    def _relevant_features_default(self):
-        results = []
-        not_present = []
-
-        for rule in self:
-            # TODO: this is weird
-            if rule.operator in geq:
-                if rule.feature in not_present:
-                    results.append(rule.feature)
-                else:
-                    not_present.append(rule.feature)
-            elif rule.operator not in geq:
-                if rule.feature in not_present:
-                    results.append(rule.feature)
-                else:
-                    not_present.append(-rule.feature)
-        return results
-"""
 
 
 @define
@@ -146,7 +118,6 @@ class AAE:
     .encode(Point)
     .decode(Point)
     .discriminate(Point)
-
     """
 
     model = field(init=False, repr=lambda value: f"{type(value)}")
@@ -186,13 +157,12 @@ class Domain:
 
 @define
 class LatentDT:
-    predicted_class: int  # index of classes, refers to Domain.classes
+    predicted_class: str  # TODO: do i need to validate this against Domain.classes?
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
-    # TODO: in the finished code I'd like to set
-    # s_rules and s_counterrules to repr=False
-    s_rules: str
-    s_counterrules: str
+    # TODO: set s_rules and s_counterrules to repr=False
+    s_rules: str = field()
+    s_counterrules: str = field()
     model_json: dict = field(
         init=False,
         repr=lambda value: f"{type(value)}",
@@ -207,7 +177,7 @@ class LatentDT:
     @rules.default
     def _rules_default(self):
         """
-        This converts s_rules:str to rules:list[Rule]
+        This converts s_rules:str to rules:ComplexRule
 
         REMEMBER THAT positive rules mean you're getting
         the `target_class` by 'applying' **ALL** the positive rules.
@@ -389,8 +359,7 @@ class TestPoint:
         **Used for counterfactual image generation**
 
         is used to apply marginally a Rule on a new TestPoint object,
-        modifying its Latent.a
-        Returns a TestPoint
+        Returns an ImageExplanation
 
         e.g. if the rule is 2 > 5.0
         returns a TestPoint with Latent.a[2] == 5.0 + eps
@@ -411,15 +380,17 @@ class TestPoint:
         print(f"new_point: {new_point}")
         return new_point
 
-    def perturb(self, complexrule: ComplexRule, eps=0.01):
+    def perturb(self, complexrule: ComplexRule, eps=0.01) -> ImageExplanation:
         """
-        returns a TestPoint object with the ComplexRule respected on its feature,
-        but still varying the feature by **at least** some margin
+        **Used for factual image generation**
+
+        returns one TestPoint object with the entire ComplexRule respected,
+        but still varying the features by **at least** some margin eps
         """
 
         my_generated_record = []
         for feature_id in range(self.latent.a.shape[0]):
-            # TODO: now: this is the perturbation step, for each rule
+            # this is the perturbation step, for each rule
             generated = False
             failures_counter = 0
             while not generated:
@@ -427,9 +398,10 @@ class TestPoint:
                 # random.uniform gives variations on the eps value,
                 # random.randrange returns -1 or 1 randomly so the effect
                 # is to either subtract or add eps to value
-                generated_value = self.latent.a[feature_id] + eps * random.uniform(
-                    0.1, 10
-                ) * random.randrange(-1, 1, 2)
+                # old:
+                # generated_value = self.latent.a[feature_id] + eps * random.uniform(0.1, 10) * random.randrange(-1, 1, 2)
+
+                generated_value = random.gauss()
 
                 # convalidate it
                 rules_satisfied = 0
@@ -465,21 +437,49 @@ class TestPoint:
         )
 
 
+def ranking_knn(
+    target: TestPoint, my_points: list[ImageExplanation]
+) -> list[ImageExplanation]:
+    """
+    outputs a list of ImageExplanation
+    in ascending order of distance from target
+    closest point is index=0, farthest point is index=len(my_points)
+    """
+    neigh = NearestNeighbors(n_neighbors=30)
+    neigh.fit([x.latent.a for x in my_points])
+    results = neigh.kneighbors([target.latent.a])
+    print(results)
+    print(type(results))
+    print(type(results[0]))
+    #results = results.zip
+
+    #results = sorted(results, key=lambda x: x)
+
+
 @define
 class Explainer:
     """
     this is what oab.py returns when you ask an explanation
 
     testpoint: an input point to explain
+    howmany:int how many prototypes (positive exemplars) to generate. The number of counterfactuals
+        generated is always == the number of counterrules.
     save: whether to save generated exemplars to data_path (for testing purposes)
     target: the TreePoint most similar to testpoint
     """
 
     testpoint: TestPoint
+    howmany: int = field(default=3)
     save: bool = field(default=False)
     target: TreePoint = field(init=False)
     counterfactuals: list[ImageExplanation] = field(init=False)
     factuals: list[ImageExplanation] = field(init=False)
+    ordered_factuals: list[ImageExplanation] = field(init=False)
+
+    @howmany.validator
+    def _howmany_validator(self, attribute, value):
+        if value < 0:
+            raise ValueError(f"{attribute} should be positive, instead it was {value}")
 
     @target.default
     def _target_default(self) -> TreePoint:
@@ -491,12 +491,6 @@ class Explainer:
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
         results = []
-
-        # TODO: understand this
-        # what do i have?
-        # i have the treepoint from which to draw rules, crules
-        # i have said rules, crules
-        # i have the testpoint on which to apply rules, crules
 
         for i, rule in enumerate(self.target.latentdt.counterrules):
             point: ImageExplanation = self.testpoint.marginal_apply(rule)
@@ -515,16 +509,16 @@ class Explainer:
 
     @factuals.default
     def _factuals_default(self):
-        print("Doing [green]factuals[/]")
+        print(f"Doing [green]factuals[/] with target point id={self.target.id}")
         results = []
 
-        # TODO: generate more than one
-        point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
-        results.append(point)
-        
+        for factual in range(self.howmany):
+            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
+            results.append(point)
+
         i = 0  # TODO: ??? delete?
         if self.save:
-            for i, point in enumerate([point]):
+            for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
                     f"factual - black box predicted class: xxx"
@@ -533,6 +527,21 @@ class Explainer:
 
         print(f"I made {i+1} factuals.")  # TODO: ??? delete?
         return results
+
+    @ordered_factuals.default
+    def _ordered_factuals_default(self):
+        print(f"Doing [green]factuals[/] with target point id={self.target.id}")
+        results = []
+
+        for factual in range(self.howmany * 10):
+            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
+            results.append(point)
+
+        print(f"how many? {len(results)}")
+        print(f"see the first {results[0]}")
+
+        ordered_results = ranking_knn(self.target, results)
+        print(ordered_results)
 
     @classmethod
     def from_file(cls, my_path: Path):
