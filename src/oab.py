@@ -246,7 +246,7 @@ class LatentDT:
                         target_class=target_class,
                     )
                 )
-        return results
+        return ComplexRule(results)
 
     @counterrules.default
     def _counterrules_default(self):
