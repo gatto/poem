@@ -121,7 +121,7 @@ class ComplexRule(UserList):
         for rule in self.data:
             try:
                 results[rule.feature].append(rule.operator)
-            except IndexError:
+            except KeyError:
                 results[rule.feature] = [rule.operator]
             results[rule.feature].sort()
 
