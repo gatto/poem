@@ -377,7 +377,7 @@ class TestPoint:
             latent=Latent(a=copy.deepcopy(self.latent.a), margins=None), blackbox=None
         )
         new_point.latent.a[rule.feature] = value_to_overwrite
-        print(f"new_point: {new_point}")
+        print(new_point)
         return new_point
 
     def perturb(self, complexrule: ComplexRule, eps=0.01) -> ImageExplanation:
@@ -451,9 +451,12 @@ def ranking_knn(
     print(results)
     print(type(results))
     print(type(results[0]))
-    #results = results.zip
-
-    #results = sorted(results, key=lambda x: x)
+    results = zip(results[0], results[1])
+    print("[purple]we zippin zippin")
+    print(results)
+    print("[blue]we sortin sortin")
+    results = sorted(results, key=lambda x: x[1])
+    return results
 
 
 @define
@@ -530,18 +533,14 @@ class Explainer:
 
     @ordered_factuals.default
     def _ordered_factuals_default(self):
-        print(f"Doing [green]factuals[/] with target point id={self.target.id}")
+        print(f"Doing [green]ordered factuals[/] with target point id={self.target.id}")
         results = []
 
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
             results.append(point)
 
-        print(f"how many? {len(results)}")
-        print(f"see the first {results[0]}")
-
-        ordered_results = ranking_knn(self.target, results)
-        print(ordered_results)
+        return ranking_knn(self.target, results)
 
     @classmethod
     def from_file(cls, my_path: Path):
