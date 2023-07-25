@@ -368,16 +368,36 @@ class TestPoint:
         TODO: eps possibly belonging to Domain? Must calculate it feature
         by feature or possible to have one eps for entire domain?
         """
-        value_to_overwrite = (
-            rule.value + eps if rule.operator in geq else rule.value - eps
-        )
 
-        # THIS IS THE IMAGEEXPLANATION GENERATION
-        new_point = ImageExplanation(
-            latent=Latent(a=copy.deepcopy(self.latent.a), margins=None), blackbox=None
+        debug_results = ""
+        # cycles UP TO 40 times to get one point passing the discriminator
+        for i in range(40):
+            value_to_overwrite = (
+                rule.value + eps if rule.operator in geq else rule.value - eps
+            )
+
+            # THIS IS THE IMAGEEXPLANATION GENERATION
+            new_point = ImageExplanation(
+                latent=Latent(a=copy.deepcopy(self.latent.a), margins=None),
+                blackbox=None,
+            )
+            new_point.latent.a[rule.feature] = value_to_overwrite
+
+            # static set discriminator probability at 0.5
+            # passes discriminator? Return it immediately.
+            # No? start again with entire point generation
+            if my_domain.aae.discriminate(new_point) > 0.5:
+                if debug_results:
+                    print(debug_results)
+                return new_point
+            else:
+                debug_results = (
+                    f"{debug_results} {my_domain.aae.discriminate(new_point)}"
+                )
+        # we arrive here if we didn't get a valid point after 40 tries
+        raise Exception(
+            f"apparently we had lots of trouble with .marginal_apply() on this point:\n{self}"
         )
-        new_point.latent.a[rule.feature] = value_to_overwrite
-        return new_point
 
     def perturb(
         self, complexrule: ComplexRule, eps=0.01, old_method=False
@@ -388,21 +408,28 @@ class TestPoint:
         returns one TestPoint object with the entire ComplexRule respected,
         but still varying the features by **at least** some margin eps
         """
+
+        debug_results = ""
+        # cycles UP TO 40 times to get one point passing the discriminator
         for i in range(40):
             my_generated_record = []
             for feature_id in range(self.latent.a.shape[0]):
-                # this is the perturbation step, for each rule
+                # this is the perturbation step, feature by feature
                 generated = False
                 failures_counter = 0
                 while not generated:
-                    # generate random record
-                    # random.uniform gives variations on the eps value,
+                    # OLD_METHOD:
+                    # take value of feature_id in testpoint
+                    # perturb it with random.uniform gives variations on the eps value,
                     # random.randrange returns -1 or 1 randomly so the effect
                     # is to either subtract or add eps to value
+                    # NEW METHOD:
+                    # generate any random value out of a gaussian. We rely solely on
+                    # the neighbour-distance ranking to get a link with our original testpoint
                     if old_method:
-                        generated_value = self.latent.a[feature_id] + eps * random.uniform(
-                            0.1, 10
-                        ) * random.randrange(-1, 1, 2)
+                        generated_value = self.latent.a[
+                            feature_id
+                        ] + eps * random.uniform(0.1, 10) * random.randrange(-1, 1, 2)
                     else:
                         generated_value = random.gauss(mu=0.0, sigma=1.0)
 
@@ -418,18 +445,31 @@ class TestPoint:
                     else:
                         failures_counter += 1
                 if failures_counter > 0:
-                    print(f"(debug) {failures_counter} failures for feature {feature_id}")
+                    print(
+                        f"(debug) {failures_counter} failures for feature {feature_id}"
+                    )
 
                 my_generated_record.append(generated_value)
-            
-            final_result = ImageExplanation(latent=Latent(a=np.asarray(my_generated_record), margins=None),blackbox=None,)
+
+            new_point = ImageExplanation(
+                latent=Latent(a=np.asarray(my_generated_record), margins=None),
+                blackbox=None,
+            )
             # static set discriminator probability at 0.5
-            if my_domain.aae.discriminate(final_result) > 0.5:
-                return final_result
+            # passes discriminator? Return it immediately.
+            # No? start again with entire point generation
+            if my_domain.aae.discriminate(new_point) > 0.5:
+                if debug_results:
+                    print(debug_results)
+                return new_point
             else:
-                print(my_domain.aae.discriminate(final_result))
+                debug_results = (
+                    f"{debug_results} {my_domain.aae.discriminate(new_point)}"
+                )
         # we arrive here if we didn't get a valid point after 40 tries
-        raise Exception(f"apparently we had lots of trouble perturbing this point: {self}")
+        raise Exception(
+            f"apparently we had lots of trouble perturbing this point:\n{self}"
+        )
 
     @classmethod
     def generate_test(cls):
@@ -831,8 +871,8 @@ if __name__ == "__main__":
 
         if run_options == "test-train":
             # only for test purposes
-            X_tree = X_tree[:sys.argv[2]]
-            Y_tree = Y_tree[:sys.argv[2]]
+            X_tree = X_tree[: sys.argv[2]]
+            Y_tree = Y_tree[: sys.argv[2]]
 
         for i, point in enumerate(X_tree):
             try:
