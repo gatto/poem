@@ -451,7 +451,7 @@ def ranking_knn(
     print(results)
     print(type(results))
     print(type(results[0]))
-    results = zip(results[0], results[1])
+    results = list(zip(results[0], results[1]))
     print("[purple]we zippin zippin")
     print(results)
     print("[blue]we sortin sortin")
