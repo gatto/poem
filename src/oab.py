@@ -447,8 +447,7 @@ class TestPoint:
                         failures_counter += 1
                 if failures_counter > 0:
                     logging.debug(
-                        "(debug) %d failures for feature %d"
-                        % (failures_counter, feature_id)
+                        f"(debug) {failures_counter} failures for feature {feature_id}"
                     )
 
                 my_generated_record.append(generated_value)
@@ -538,9 +537,7 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self):
-        logging.info(
-            "Doing counterfactuals with target point id=%d" % (self.target.id,)
-        )
+        logging.info(f"Doing counterfactuals with target point id={self.target.id}")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
         results = []
@@ -557,14 +554,12 @@ class Explainer:
 
             results.append(point)
 
-        logging.info("I made %d counterfactuals." % (len(results),))
+        logging.info(f"I made {len(results)} counterfactuals.")
         return results
 
     @eps_factuals.default
     def _eps_factuals_default(self):
-        logging.info(
-            "Doing epsilon-factuals with target point id=%d" % (self.target.id,)
-        )
+        logging.info(f"Doing epsilon-factuals with target point id={self.target.id}")
         results = []
 
         for factual in range(self.howmany):
@@ -581,12 +576,12 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        logging.info("I made %d epsilon-factuals." % (len(results),))
+        logging.info(f"I made {len(results)} epsilon-factuals.")
         return results
 
     @factuals.default
     def factuals_default(self):
-        logging.info("Doing factuals with target point id=%d" % (self.target.id,))
+        logging.info(f"Doing factuals with target point id={self.target.id}")
         results = []
 
         for factual in range(self.howmany * 10):
