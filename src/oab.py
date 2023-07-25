@@ -443,7 +443,8 @@ class TestPoint:
 
             my_generated_record.append(generated_value)
         return ImageExplanation(
-            latent=Latent(a=my_generated_record, margins=None), blackbox=None
+            latent=Latent(a=np.asarray(my_generated_record), margins=None),
+            blackbox=None,
         )
 
     @classmethod
