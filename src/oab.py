@@ -452,13 +452,11 @@ def ranking_knn(
     neigh = NearestNeighbors(n_neighbors=len(my_points))
     neigh.fit([x.latent.a for x in my_points])
     results = neigh.kneighbors([target.latent.a])
-    print(results)
     # results: tuple(np.ndarray, np.ndarray)
     # results[0].shape = (1, n_neighbors) are the distances
     # results[1].shape = (1, n_neighbors) are the indexes
     results = zip(results[0][0], results[1][0])
     results = list(sorted(results))
-    print(results)
     return results
 
 
@@ -510,7 +508,7 @@ class Explainer:
 
             results.append(point)
 
-        print(f"I made {i+1} counterfactuals.")
+        print(f"I made {len(results)} counterfactuals.")
         return results
 
     @factuals.default
@@ -524,7 +522,6 @@ class Explainer:
             )
             results.append(point)
 
-        i = 0  # TODO: ??? delete?
         if self.save:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
@@ -533,7 +530,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        print(f"I made {i+1} factuals.")  # TODO: ??? delete?
+        print(f"I made {len(results)} factuals.")  # TODO: ??? delete?
         return results
 
     @ordered_factuals.default
@@ -554,15 +551,15 @@ class Explainer:
         indexes_to_take = [x[1] for x in ranking]
         results = [results[i] for i in indexes_to_take]
 
-        i = 0  # TODO: ??? delete?
         if self.save:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
                     f"factual new method - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
-                plt.savefig(data_path / f"fact_{i}.png", dpi=150)
+                plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
+        print(f"I made {len(results)} new factuals.")  # TODO: ??? delete?
         return results
 
     @classmethod
@@ -796,7 +793,7 @@ if __name__ == "__main__":
     except IndexError:
         raise Exception(
             """possible runtime arguments are:\n
-            (testing) delete-all, run-tests, test-train,\n
+            (testing) delete-all, run-tests, test-train <how many to load>,\n
             (production) train, list, explain <path of img to explain>"""
         )
 
@@ -829,8 +826,8 @@ if __name__ == "__main__":
 
         if run_options == "test-train":
             # only for test purposes
-            X_tree = X_tree[:2]
-            Y_tree = Y_tree[:2]
+            X_tree = X_tree[:sys.argv[2]]
+            Y_tree = Y_tree[:sys.argv[2]]
 
         for i, point in enumerate(X_tree):
             try:
