@@ -442,7 +442,8 @@ class TestPoint:
                     generated = True
                 else:
                     failures_counter += 1
-            print(f"{failures_counter} failures for feature {feature_id}")
+            if failures_counter > 0:
+                print(f"(debug) {failures_counter} failures for feature {feature_id}")
 
             my_generated_record.append(generated_value)
         return ImageExplanation(
@@ -509,7 +510,7 @@ class Explainer:
 
             results.append(point)
 
-        print(f"I made #{i+1} counterfactuals.")
+        print(f"I made {i+1} counterfactuals.")
         return results
 
     @factuals.default
@@ -519,7 +520,8 @@ class Explainer:
 
         # TODO: generate more than one
         point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
-
+        results.append(point)
+        
         i = 0  # TODO: ??? delete?
         if self.save:
             for i, point in enumerate([point]):
@@ -529,7 +531,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        print(f"I made #{i+1} factuals.")  # TODO: ??? delete?
+        print(f"I made {i+1} factuals.")  # TODO: ??? delete?
         return results
 
     @classmethod
