@@ -368,6 +368,12 @@ class TestPoint:
 
         TODO: eps possibly belonging to Domain? Must calculate it feature
         by feature or possible to have one eps for entire domain?
+
+        TODO: this is completely deterministic so if it doesn't pass discriminator
+        first time, it won't pass it ever
+        Should we introduce randomness? Or is the setting of feature value
+        close to the decision boundary already guaranteeing that the point will
+        be accepted by discriminator?
         """
 
         debug_results = ""
@@ -447,7 +453,7 @@ class TestPoint:
                         failures_counter += 1
                 if failures_counter > 0:
                     logging.debug(
-                        f"(debug) {failures_counter} failures for feature {feature_id}"
+                        f"{failures_counter} failures for feature {feature_id}"
                     )
 
                 my_generated_record.append(generated_value)
@@ -632,7 +638,7 @@ class Explainer:
         intended usage:
 
         from oab import Explainer
-        explanation = Explainer.from_file(<path_to_image>)
+        explanation = Explainer.from_array(<path_to_image>)
         """
         return cls()
 
@@ -870,8 +876,8 @@ if __name__ == "__main__":
 
         if run_options == "test-train":
             # only for test purposes
-            X_tree = X_tree[: sys.argv[2]]
-            Y_tree = Y_tree[: sys.argv[2]]
+            X_tree = X_tree[: int(sys.argv[2])]
+            Y_tree = Y_tree[: int(sys.argv[2])]
 
         for i, point in enumerate(X_tree):
             try:
