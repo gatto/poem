@@ -447,7 +447,7 @@ class TestPoint:
                         failures_counter += 1
                 if failures_counter > 0:
                     logging.DEBUG(
-                        "(debug) %s failures for feature %s"
+                        "(debug) %d failures for feature %d"
                         % (failures_counter, feature_id)
                     )
 
@@ -539,7 +539,7 @@ class Explainer:
     @counterfactuals.default
     def _counterfactuals_default(self):
         logging.INFO(
-            "Doing counterfactuals with target point id=%s" % (self.target.id,)
+            "Doing counterfactuals with target point id=%d" % (self.target.id,)
         )
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
@@ -557,13 +557,13 @@ class Explainer:
 
             results.append(point)
 
-        logging.INFO("I made %s counterfactuals." % (len(results),))
+        logging.INFO("I made %d counterfactuals." % (len(results),))
         return results
 
     @eps_factuals.default
     def _eps_factuals_default(self):
         logging.INFO(
-            "Doing epsilon-factuals with target point id=%s" % (self.target.id,)
+            "Doing epsilon-factuals with target point id=%d" % (self.target.id,)
         )
         results = []
 
@@ -581,12 +581,12 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        logging.INFO("I made %s epsilon-factuals." % (len(results),))
+        logging.INFO("I made %d epsilon-factuals." % (len(results),))
         return results
 
     @factuals.default
     def factuals_default(self):
-        logging.INFO("Doing factuals with target point id=%s" % (self.target.id,))
+        logging.INFO("Doing factuals with target point id=%d" % (self.target.id,))
         results = []
 
         for factual in range(self.howmany * 10):
@@ -608,7 +608,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
-        logging.INFO("I made %s factuals." % (len(results),))
+        logging.INFO("I made %d factuals." % (len(results),))
         return results
 
     @classmethod
