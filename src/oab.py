@@ -377,10 +377,11 @@ class TestPoint:
             latent=Latent(a=copy.deepcopy(self.latent.a), margins=None), blackbox=None
         )
         new_point.latent.a[rule.feature] = value_to_overwrite
-        print(new_point)
         return new_point
 
-    def perturb(self, complexrule: ComplexRule, eps=0.01) -> ImageExplanation:
+    def perturb(
+        self, complexrule: ComplexRule, eps=0.01, old_method=False
+    ) -> ImageExplanation:
         """
         **Used for factual image generation**
 
@@ -398,12 +399,14 @@ class TestPoint:
                 # random.uniform gives variations on the eps value,
                 # random.randrange returns -1 or 1 randomly so the effect
                 # is to either subtract or add eps to value
-                # old:
-                # generated_value = self.latent.a[feature_id] + eps * random.uniform(0.1, 10) * random.randrange(-1, 1, 2)
+                if old_method:
+                    generated_value = self.latent.a[feature_id] + eps * random.uniform(
+                        0.1, 10
+                    ) * random.randrange(-1, 1, 2)
+                else:
+                    generated_value = random.gauss(mu=0.0, sigma=1.0)
 
-                generated_value = random.gauss(mu=0.0, sigma=1.0)
-
-                # convalidate it
+                # validate it according to ComplexRule
                 rules_satisfied = 0
                 for rule in complexrule.rules[feature_id]:
                     if rule.respects_rule(generated_value):
@@ -439,24 +442,23 @@ class TestPoint:
 
 def ranking_knn(
     target: TestPoint, my_points: list[ImageExplanation]
-) -> list[ImageExplanation]:
+) -> list[tuple[float, int]]:
     """
     outputs a list of ImageExplanation
     in ascending order of distance from target
     closest point is index=0, farthest point is index=len(my_points)
     """
-    neigh = NearestNeighbors(n_neighbors=30)
+
+    neigh = NearestNeighbors(n_neighbors=len(my_points))
     neigh.fit([x.latent.a for x in my_points])
     results = neigh.kneighbors([target.latent.a])
     print(results)
     # results: tuple(np.ndarray, np.ndarray)
-    # results[0].shape = (1, n_neighbors)
-    # results[1].shape = (1, n_neighbors)
-    results = list(zip(results[0][0], results[1][0]))
-    print("[purple]we zippin zippin")
+    # results[0].shape = (1, n_neighbors) are the distances
+    # results[1].shape = (1, n_neighbors) are the indexes
+    results = zip(results[0][0], results[1][0])
+    results = list(sorted(results))
     print(results)
-    print("[blue]we sortin sortin")
-    results = sorted(results, key=lambda x: x[0])
     return results
 
 
@@ -517,7 +519,9 @@ class Explainer:
         results = []
 
         for factual in range(self.howmany):
-            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
+            point: ImageExplanation = self.testpoint.perturb(
+                self.target.latentdt.rules, old_method=True
+            )
             results.append(point)
 
         i = 0  # TODO: ??? delete?
@@ -525,7 +529,7 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"factual - black box predicted class: xxx"
+                    f"factual old method - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
@@ -534,16 +538,32 @@ class Explainer:
 
     @ordered_factuals.default
     def _ordered_factuals_default(self):
-        print(f"Doing [green]ordered factuals[/] with target point id={self.target.id}")
+        print(
+            f"Doing [purple]ordered factuals[/] with target point id={self.target.id}"
+        )
         results = []
 
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
             results.append(point)
 
-        ranking = ranking_knn(self.target, results)[-5:]
-        indexes_to_take = [x[1] for x in ranking]  # take the index in the tuple(distance, index)
-        return [results[i] for i in indexes_to_take]
+        # take the last how_many points, last because I'd like the farthest points
+        ranking = ranking_knn(self.target, results)[-self.how_many :]
+
+        # take the index in the tuple(distance, index)
+        indexes_to_take = [x[1] for x in ranking]
+        results = [results[i] for i in indexes_to_take]
+
+        i = 0  # TODO: ??? delete?
+        if self.save:
+            for i, point in enumerate(results):
+                plt.imshow(point.a.astype("uint8"), cmap="gray")
+                plt.title(
+                    f"factual new method - black box predicted class: xxx"
+                )  # TODO: substitute xxx -> point.blackbox.predicted_class
+                plt.savefig(data_path / f"fact_{i}.png", dpi=150)
+
+        return results
 
     @classmethod
     def from_file(cls, my_path: Path):
