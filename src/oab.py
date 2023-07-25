@@ -1,6 +1,7 @@
 import copy
 import io
 import json
+import logging
 import pickle
 import random
 import sqlite3
@@ -388,7 +389,7 @@ class TestPoint:
             # No? start again with entire point generation
             if my_domain.aae.discriminate(new_point) > 0.5:
                 if debug_results:
-                    print(debug_results)
+                    logging.DEBUG(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -445,7 +446,7 @@ class TestPoint:
                     else:
                         failures_counter += 1
                 if failures_counter > 0:
-                    print(
+                    logging.DEBUG(
                         f"(debug) {failures_counter} failures for feature {feature_id}"
                     )
 
@@ -460,7 +461,7 @@ class TestPoint:
             # No? start again with entire point generation
             if my_domain.aae.discriminate(new_point) > 0.5:
                 if debug_results:
-                    print(debug_results)
+                    logging.DEBUG(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -536,7 +537,7 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self):
-        print(f"Doing [red]counterfactuals[/] with target point id={self.target.id}")
+        logging.INFO(f"Doing [red]counterfactuals[/] with target point id={self.target.id}")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
         results = []
@@ -553,12 +554,12 @@ class Explainer:
 
             results.append(point)
 
-        print(f"I made {len(results)} counterfactuals.")
+        logging.INFO(f"I made {len(results)} counterfactuals.")
         return results
 
     @eps_factuals.default
     def _eps_factuals_default(self):
-        print(f"Doing [green]factuals[/] with target point id={self.target.id}")
+        logging.INFO(f"Doing [green]epsilon-factuals[/] with target point id={self.target.id}")
         results = []
 
         for factual in range(self.howmany):
@@ -575,13 +576,13 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        print(f"I made {len(results)} factuals.")  # TODO: ??? delete?
+        logging.INFO(f"I made {len(results)} epsilon-factuals.")
         return results
 
     @factuals.default
     def factuals_default(self):
-        print(
-            f"Doing [purple]ordered factuals[/] with target point id={self.target.id}"
+        logging.INFO(
+            f"Doing [purple]factuals[/] with target point id={self.target.id}"
         )
         results = []
 
@@ -604,7 +605,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
-        print(f"I made {len(results)} new factuals.")  # TODO: ??? delete?
+        logging.INFO(f"I made {len(results)} factuals.")
         return results
 
     @classmethod
