@@ -388,43 +388,48 @@ class TestPoint:
         returns one TestPoint object with the entire ComplexRule respected,
         but still varying the features by **at least** some margin eps
         """
-
-        my_generated_record = []
-        for feature_id in range(self.latent.a.shape[0]):
-            # this is the perturbation step, for each rule
-            generated = False
-            failures_counter = 0
-            while not generated:
-                # generate random record
-                # random.uniform gives variations on the eps value,
-                # random.randrange returns -1 or 1 randomly so the effect
-                # is to either subtract or add eps to value
-                if old_method:
-                    generated_value = self.latent.a[feature_id] + eps * random.uniform(
-                        0.1, 10
-                    ) * random.randrange(-1, 1, 2)
-                else:
-                    generated_value = random.gauss(mu=0.0, sigma=1.0)
-
-                # validate it according to ComplexRule
-                rules_satisfied = 0
-                for rule in complexrule.rules[feature_id]:
-                    if rule.respects_rule(generated_value):
-                        rules_satisfied += 1
+        for i in range(40):
+            my_generated_record = []
+            for feature_id in range(self.latent.a.shape[0]):
+                # this is the perturbation step, for each rule
+                generated = False
+                failures_counter = 0
+                while not generated:
+                    # generate random record
+                    # random.uniform gives variations on the eps value,
+                    # random.randrange returns -1 or 1 randomly so the effect
+                    # is to either subtract or add eps to value
+                    if old_method:
+                        generated_value = self.latent.a[feature_id] + eps * random.uniform(
+                            0.1, 10
+                        ) * random.randrange(-1, 1, 2)
                     else:
-                        pass
-                if rules_satisfied == len(complexrule.rules[feature_id]):
-                    generated = True
-                else:
-                    failures_counter += 1
-            if failures_counter > 0:
-                print(f"(debug) {failures_counter} failures for feature {feature_id}")
+                        generated_value = random.gauss(mu=0.0, sigma=1.0)
 
-            my_generated_record.append(generated_value)
-        return ImageExplanation(
-            latent=Latent(a=np.asarray(my_generated_record), margins=None),
-            blackbox=None,
-        )
+                    # validate it according to ComplexRule
+                    rules_satisfied = 0
+                    for rule in complexrule.rules[feature_id]:
+                        if rule.respects_rule(generated_value):
+                            rules_satisfied += 1
+                        else:
+                            pass
+                    if rules_satisfied == len(complexrule.rules[feature_id]):
+                        generated = True
+                    else:
+                        failures_counter += 1
+                if failures_counter > 0:
+                    print(f"(debug) {failures_counter} failures for feature {feature_id}")
+
+                my_generated_record.append(generated_value)
+            
+            final_result = ImageExplanation(latent=Latent(a=np.asarray(my_generated_record), margins=None),blackbox=None,)
+            # static set discriminator probability at 0.5
+            if my_domain.aae.discriminate(final_result) > 0.5:
+                return final_result
+            else:
+                print(my_domain.aae.discriminate(final_result))
+        # we arrive here if we didn't get a valid point after 40 tries
+        raise Exception(f"apparently we had lots of trouble perturbing this point: {self}")
 
     @classmethod
     def generate_test(cls):
