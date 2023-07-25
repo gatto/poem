@@ -110,7 +110,6 @@ class ComplexRule(UserList):
 
     def __init__(self, iterable):
         super().__init__(self._validate_item(item) for item in iterable)
-        self._update_features()
         self.segments = Segments(self.data)
 
     def _validate_item(self, value):
