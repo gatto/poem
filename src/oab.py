@@ -77,30 +77,38 @@ class Rule:
 
 
 class ComplexRule(UserList):
+    """
+    Has
+    .data - list of Rule
+    .features - dictionary of features with the operators appearing in the ComplexRule
+    """
     def __init__(self, iterable):
         super().__init__(self._validate_item(item) for item in iterable)
+        self._update_features()
 
     def __setitem__(self, index, item):
         self.data[index] = self._validate_item(item)
+        self._update_features()
 
     def insert(self, index, item):
         self.data.insert(index, self._validate_item(item))
+        self._update_features()
 
     def append(self, item):
         self.data.append(self._validate_item(item))
+        self._update_features()
 
     def extend(self, other):
         if isinstance(other, type(self)):
             self.data.extend(other)
         else:
             self.data.extend(self._validate_item(item) for item in other)
+        self._update_features()
 
     def _validate_item(self, value):
         if isinstance(value, Rule):
             return value
-        raise TypeError(
-            f"Rule expected, got {type(value).__name__}"
-        )
+        raise TypeError(f"Rule expected, got {type(value).__name__}")
 
     def remove(self, s=None):
         raise RuntimeError("Deletion not allowed")
@@ -108,6 +116,16 @@ class ComplexRule(UserList):
     def pop(self, s=None):
         raise RuntimeError("Deletion not allowed")
 
+    def _update_features(self):
+        results = {}
+        for rule in self.data:
+            try:
+                results[rule.feature].append(rule.operator)
+            except IndexError:
+                results[rule.feature] = [rule.operator]
+            results[rule.feature].sort()
+
+        self.features = results
 
 """    @relevant_features.default
     def _relevant_features_default(self):
