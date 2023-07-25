@@ -456,7 +456,7 @@ def ranking_knn(
     print("[purple]we zippin zippin")
     print(results)
     print("[blue]we sortin sortin")
-    results = sorted(results, key=lambda x: x[1])
+    results = sorted(results, key=lambda x: x[0])
     return results
 
 
@@ -541,7 +541,9 @@ class Explainer:
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
             results.append(point)
 
-        return ranking_knn(self.target, results)
+        ranking = ranking_knn(self.target, results)[-5:]
+        indexes_to_take = [x[1] for x in ranking]  # take the index in the tuple(distance, index)
+        return [results[i] for i in indexes_to_take]
 
     @classmethod
     def from_file(cls, my_path: Path):
