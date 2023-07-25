@@ -2,6 +2,7 @@ import copy
 import io
 import json
 import pickle
+import random
 import sqlite3
 import sys
 from collections import UserList
@@ -75,78 +76,40 @@ class Rule:
     # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
 
+    def respects_rule(self, my_value) -> bool:
+        match self.operator:
+            case ">":
+                return True if my_value > self.value else False
+            case ">=":
+                return True if my_value >= self.value else False
+            case "<":
+                return True if my_value < self.value else False
+            case "<=":
+                return True if my_value <= self.value else False
+
 
 @define(repr=False)
-class Segments:
-    rules = field()
+class Segment:
     features: dict = field(init=False)
 
     @features.default
     def _features_default(self):
-        results = {}
-        for rule in self.rules:
-            try:
-                results[rule.feature].append(rule.operator)
-            except KeyError:
-                results[rule.feature] = [rule.operator]
-            results[rule.feature].sort()
-
-        return results
-
-    def __getitem__(self, arg) -> list:
-        results = []
-        for rule in self.rules:
-            if rule.feature == arg:
-                results.append(rule)
-        return results
+        pass
 
 
-class ComplexRule(UserList):
+def _converter_complexrule(rules):
+    if type(rules) == list:
+        return {rule.feature: rule for rule in rules}
+
+
+@define
+class ComplexRule:
     """
     Has
-    .data - list of Rule
-    .features - dictionary of features with the operators appearing in the ComplexRule
+    .rules - dict of Rule
     """
 
-    def __init__(self, iterable):
-        super().__init__(self._validate_item(item) for item in iterable)
-        self.segments = Segments(self.data)
-
-    def _validate_item(self, value):
-        if isinstance(value, Rule):
-            return value
-        raise TypeError(f"Rule expected, got {type(value).__name__}")
-
-    def __setitem__(self, index, item):
-        raise RuntimeError("Modification not allowed")
-        # self.data[index] = self._validate_item(item)
-        # self._update_features()
-
-    def insert(self, index, item):
-        raise RuntimeError("Modification not allowed")
-        # self.data.insert(index, self._validate_item(item))
-        # self._update_features()
-
-    def append(self, item):
-        raise RuntimeError("Modification not allowed")
-
-        # self.data.append(self._validate_item(item))
-        # self._update_features()
-
-    def extend(self, other):
-        raise RuntimeError("Modification not allowed")
-
-        # if isinstance(other, type(self)):
-        #    self.data.extend(other)
-        # else:
-        #    self.data.extend(self._validate_item(item) for item in other)
-        # self._update_features()
-
-    def remove(self, s=None):
-        raise RuntimeError("Modification not allowed")
-
-    def pop(self, s=None):
-        raise RuntimeError("Modification not allowed")
+    rules = field(converter=_converter_complexrule)
 
 
 """    @relevant_features.default
@@ -448,12 +411,34 @@ class TestPoint:
         but still varying the feature by **at least** some margin
         """
 
-        for rule in complexrule:
+        my_generated_record = []
+        for feature_id in range(self.latent.a.shape[0]):
             # TODO: now: this is the perturbation step, for each rule
-            value_to_overwrite = (
-                rule.value - eps if rule.operator in geq else rule.value + eps
-            )
-        return
+            generated = False
+            failures_counter = 0
+            while not generated:
+                # generate random record
+                generated_value = self.latent.a[feature_id] + eps * random.uniform(
+                    0.1, 10
+                )
+
+                # convalidate it
+                rules_satisfied = 0
+                for rule in complexrule.rules[feature_id]:
+                    if rule.respects_rule(generated_value):
+                        rules_satisfied += 1
+                    else:
+                        pass
+                if rules_satisfied == len(complexrule.rules[feature_id]):
+                    generated = True
+                else:
+                    failures_counter += 1
+            print(f"{failures_counter} failures for feature {feature_id}")
+
+            my_generated_record.append(generated_value)
+        return ImageExplanation(
+            latent=Latent(a=my_generated_record, margins=None), blackbox=None
+        )
 
     @classmethod
     def generate_test(cls):
@@ -522,13 +507,12 @@ class Explainer:
         print("Doing [green]factuals[/]")
         results = []
 
-        points: list[ImageExplanation] = self.testpoint.perturb(
-            self.target.latentdt.rules
-        )
+        # TODO: generate more than one
+        point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
 
         i = 0  # TODO: ??? delete?
         if self.save:
-            for i, point in enumerate(points):
+            for i, point in enumerate([point]):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
                     f"factual - black box predicted class: xxx"
