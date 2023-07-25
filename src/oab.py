@@ -447,7 +447,8 @@ class TestPoint:
                         failures_counter += 1
                 if failures_counter > 0:
                     logging.DEBUG(
-                        f"(debug) {failures_counter} failures for feature {feature_id}"
+                        "(debug) %s failures for feature %s"
+                        % (failures_counter, feature_id)
                     )
 
                 my_generated_record.append(generated_value)
@@ -537,7 +538,9 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self):
-        logging.INFO(f"Doing [red]counterfactuals[/] with target point id={self.target.id}")
+        logging.INFO(
+            "Doing counterfactuals with target point id=%s" % (self.target.id,)
+        )
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
         results = []
@@ -554,12 +557,14 @@ class Explainer:
 
             results.append(point)
 
-        logging.INFO(f"I made {len(results)} counterfactuals.")
+        logging.INFO("I made %s counterfactuals." % (len(results),))
         return results
 
     @eps_factuals.default
     def _eps_factuals_default(self):
-        logging.INFO(f"Doing [green]epsilon-factuals[/] with target point id={self.target.id}")
+        logging.INFO(
+            "Doing epsilon-factuals with target point id=%s" % (self.target.id,)
+        )
         results = []
 
         for factual in range(self.howmany):
@@ -576,14 +581,12 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        logging.INFO(f"I made {len(results)} epsilon-factuals.")
+        logging.INFO("I made %s epsilon-factuals." % (len(results),))
         return results
 
     @factuals.default
     def factuals_default(self):
-        logging.INFO(
-            f"Doing [purple]factuals[/] with target point id={self.target.id}"
-        )
+        logging.INFO("Doing factuals with target point id=%s" % (self.target.id,))
         results = []
 
         for factual in range(self.howmany * 10):
@@ -605,7 +608,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
-        logging.INFO(f"I made {len(results)} factuals.")
+        logging.INFO("I made %s factuals." % (len(results),))
         return results
 
     @classmethod
