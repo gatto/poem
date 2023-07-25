@@ -76,6 +76,31 @@ class Rule:
     target_class: str
 
 
+@define(repr=False)
+class Segments:
+    rules = field()
+    features: dict = field(init=False)
+
+    @features.default
+    def _features_default(self):
+        results = {}
+        for rule in self.data:
+            try:
+                results[rule.feature].append(rule.operator)
+            except KeyError:
+                results[rule.feature] = [rule.operator]
+            results[rule.feature].sort()
+
+        return results
+
+    def __getitem__(self, arg) -> list:
+        results = []
+        for rule in self.rules:
+            if rule.feature == arg:
+                results.append(rule)
+        return results
+
+
 class ComplexRule(UserList):
     """
     Has
@@ -86,34 +111,12 @@ class ComplexRule(UserList):
     def __init__(self, iterable):
         super().__init__(self._validate_item(item) for item in iterable)
         self._update_features()
+        self.segments = Segments(self.data)
 
     def _validate_item(self, value):
         if isinstance(value, Rule):
             return value
         raise TypeError(f"Rule expected, got {type(value).__name__}")
-
-    def _update_features(self):
-        results = {}
-        for rule in self.data:
-            try:
-                results[rule.feature].append(rule.operator)
-            except KeyError:
-                results[rule.feature] = [rule.operator]
-            results[rule.feature].sort()
-
-        self.features = results
-
-    def __getitem__(self, arg) -> list:
-        results = []
-        for rule in self:
-            if rule.feature == arg:
-                results.append(rule)
-        return results
-
-    def __repr__(self) -> str:
-        return f"""ComplexRule(\n
-        {[str(x) for x in self.data]}
-        \n, features={self.features})"""
 
     def __setitem__(self, index, item):
         raise RuntimeError("Modification not allowed")
