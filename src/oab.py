@@ -522,8 +522,8 @@ class Explainer:
     save: bool = field(default=False)
     target: TreePoint = field(init=False)
     counterfactuals: list[ImageExplanation] = field(init=False)
+    eps_factuals: list[ImageExplanation] = field(init=False)
     factuals: list[ImageExplanation] = field(init=False)
-    ordered_factuals: list[ImageExplanation] = field(init=False)
 
     @howmany.validator
     def _howmany_validator(self, attribute, value):
@@ -556,8 +556,8 @@ class Explainer:
         print(f"I made {len(results)} counterfactuals.")
         return results
 
-    @factuals.default
-    def _factuals_default(self):
+    @eps_factuals.default
+    def _eps_factuals_default(self):
         print(f"Doing [green]factuals[/] with target point id={self.target.id}")
         results = []
 
@@ -571,15 +571,15 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"factual old method - black box predicted class: xxx"
+                    f"epsilon factual - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
         print(f"I made {len(results)} factuals.")  # TODO: ??? delete?
         return results
 
-    @ordered_factuals.default
-    def _ordered_factuals_default(self):
+    @factuals.default
+    def factuals_default(self):
         print(
             f"Doing [purple]ordered factuals[/] with target point id={self.target.id}"
         )
@@ -600,7 +600,7 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"factual new method - black box predicted class: xxx"
+                    f"factual - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
