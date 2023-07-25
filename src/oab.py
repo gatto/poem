@@ -389,7 +389,7 @@ class TestPoint:
             # No? start again with entire point generation
             if my_domain.aae.discriminate(new_point) > 0.5:
                 if debug_results:
-                    logging.DEBUG(debug_results)
+                    logging.debug(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -446,7 +446,7 @@ class TestPoint:
                     else:
                         failures_counter += 1
                 if failures_counter > 0:
-                    logging.DEBUG(
+                    logging.debug(
                         "(debug) %d failures for feature %d"
                         % (failures_counter, feature_id)
                     )
@@ -462,7 +462,7 @@ class TestPoint:
             # No? start again with entire point generation
             if my_domain.aae.discriminate(new_point) > 0.5:
                 if debug_results:
-                    logging.DEBUG(debug_results)
+                    logging.debug(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -538,7 +538,7 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self):
-        logging.INFO(
+        logging.info(
             "Doing counterfactuals with target point id=%d" % (self.target.id,)
         )
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
@@ -557,12 +557,12 @@ class Explainer:
 
             results.append(point)
 
-        logging.INFO("I made %d counterfactuals." % (len(results),))
+        logging.info("I made %d counterfactuals." % (len(results),))
         return results
 
     @eps_factuals.default
     def _eps_factuals_default(self):
-        logging.INFO(
+        logging.info(
             "Doing epsilon-factuals with target point id=%d" % (self.target.id,)
         )
         results = []
@@ -581,12 +581,12 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
-        logging.INFO("I made %d epsilon-factuals." % (len(results),))
+        logging.info("I made %d epsilon-factuals." % (len(results),))
         return results
 
     @factuals.default
     def factuals_default(self):
-        logging.INFO("Doing factuals with target point id=%d" % (self.target.id,))
+        logging.info("Doing factuals with target point id=%d" % (self.target.id,))
         results = []
 
         for factual in range(self.howmany * 10):
@@ -608,7 +608,7 @@ class Explainer:
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
-        logging.INFO("I made %d factuals." % (len(results),))
+        logging.info(f"I made {len(results)} factuals.")
         return results
 
     @classmethod
