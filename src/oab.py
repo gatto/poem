@@ -99,7 +99,12 @@ class Segment:
 
 def _converter_complexrule(rules):
     if type(rules) == list:
-        return {rule.feature: rule for rule in rules}
+        my_results = {}
+        for rule in rules:
+            try:
+                my_results[rule.feature].append(rule)
+            except KeyError:
+                my_results[rule.feature] = [rule]
 
 
 @define
