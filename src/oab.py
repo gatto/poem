@@ -250,10 +250,10 @@ class Latent:
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
     )
     # TODO
-    margins: np.ndarray | None
+    margins: np.ndarray | None = field(default=None)
     # space: bool
 
-    # TODO: a validator for self.margins that checks that len(margins) == len(a)
+    # TODO: a validator for self.margins that checks that len(margins) == len(a) (or it's None)
 
     def __contains__(self, test_point) -> bool:
         """
@@ -346,7 +346,7 @@ class TestPoint:
     )
     blackbox: Blackbox
     domain: Domain
-    latent: Latent = field()
+    latent: Latent = field(init=False)
 
     @latent.default
     def _latent_default(self):
@@ -412,7 +412,7 @@ class TestPoint:
         """
         **Used for factual image generation**
 
-        returns one TestPoint object with the entire ComplexRule respected,
+        returns one ImageExplanation object with the entire ComplexRule respected,
         but still varying the features by **at least** some margin eps
         """
 
@@ -436,7 +436,7 @@ class TestPoint:
                     if old_method:
                         generated_value = self.latent.a[
                             feature_id
-                        ] + eps * random.uniform(0.1, 10) * random.randrange(-1, 1, 2)
+                        ] + eps * random.uniform(1, 10) * random.randrange(-1, 2, 2)
                     else:
                         generated_value = random.gauss(mu=0.0, sigma=1.0)
 
@@ -632,24 +632,15 @@ class Explainer:
         return cls()
 
     @classmethod
-    def from_array(cls, my_array: np.ndarray):
+    def from_array(cls, a: np.ndarray):
         """
         This is the main method that should be exposed externally.
         intended usage:
 
         from oab import Explainer
-        explanation = Explainer.from_array(<path_to_image>)
+        explanation = Explainer.from_array(a:np.ndarray)
         """
         return cls()
-
-    @classmethod
-    def _expl(cls, a: np.ndarray):
-        """
-        this is the private funct that actually explains
-        TODO: should this be here or in TestPoint?
-        """
-
-        pass
 
 
 def decode_rules(str) -> list[Rule]:
@@ -842,9 +833,11 @@ if __name__ == "__main__":
         run_options = sys.argv[1]
     except IndexError:
         raise Exception(
-            """possible runtime arguments are:\n
-            (testing) delete-all, run-tests, test-train <how many to load>,\n
-            (production) train, list, explain <path of img to explain>"""
+            """possible runtime arguments are:
+            (testing) delete-all, run-tests, test-train <how many to load>,
+            (production) train, list
+            
+            to use this to explain a record, must use it in a python script (refer to documentation)"""
         )
 
     if run_options == "delete-all":
@@ -852,8 +845,8 @@ if __name__ == "__main__":
         _delete_create_table()
         print(f"done {run_options}")
     elif run_options == "run-tests":
-        _delete_create_table()
-        miao = TreePoint(156, np.array(([4, 5], [1, 2])))
+        miao = load(0)
+        miao.id = 12155
         miao.save()
 
         # visualization
@@ -862,12 +855,13 @@ if __name__ == "__main__":
         table.add_column("dType", style="magenta")
         for attribute in [
             a
-            for a in dir(load(156))
-            if not a.startswith("__") and not callable(getattr(load(156), a))
+            for a in dir(load(12155))
+            if not a.startswith("__") and not callable(getattr(load(12155), a))
         ]:
             table.add_row(f"{attribute}", f"{type(attribute)}")
         console.print(table)
-        print(f"[red]Example:[/] {load(156)}")
+        print("[red]Example:[/]")
+        print(load(12155))
     elif run_options in (
         "train",
         "test-train",
@@ -910,11 +904,6 @@ if __name__ == "__main__":
                 domain=Domain(classes="test xxx"),
             )
             miao.save()
-
-        if run_options == "test-train":
-            # only for test purposes
-            print(load(0))
-            print(load(1))
     elif run_options == "list":
         all_records = list_all()
         if all_records:
@@ -922,12 +911,6 @@ if __name__ == "__main__":
             print(f"We have {len(all_records)} TreePoints in the database.")
         else:
             print("[red]No records")
-    elif run_options == "explain":
-        pass
-        # this should allow the upload of a new data point
-        # and explain it
-        # miao = explain(Path"something something")
-        # print(miao)
 
 """
 con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
