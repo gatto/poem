@@ -656,6 +656,8 @@ def knn(point: TestPoint) -> TreePoint:
     points: list[TreePoint] = load_all()
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
     while True:
+        if not points:
+            raise RuntimeError("We've run out of tree points during knn")
         # this while loop's purpose is to continue looking for 1-nn sample points
         # if the first sample point result `points[index]` is discarded because TestPoint
         # is not in the sampled point's margins
@@ -886,6 +888,7 @@ if __name__ == "__main__":
 
             # the following creates the actual data point
             # TODO: can i automate this also based on db schema?
+            print(tosave["neigh_bounding_box"].transpose())
             miao = TreePoint(
                 id=i,
                 a=point,
