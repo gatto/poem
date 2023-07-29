@@ -17,6 +17,7 @@ from attrs import define, field, validators
 from mnist import get_autoencoder, get_data, get_dataset_metadata, run_explain
 from rich import print
 from rich.console import Console
+from rich.progress import track
 from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
 
@@ -935,7 +936,7 @@ if __name__ == "__main__":
             X_tree = X_tree[: int(sys.argv[3])]
             Y_tree = Y_tree[: int(sys.argv[3])]
 
-        for i, point in enumerate(X_tree):
+        for i, point in track(enumerate(X_tree)):
             try:
                 with open(
                     Path(get_dataset_metadata()["path_aemodels"])
