@@ -261,7 +261,7 @@ class Latent:
         returns True if test_point:TestPoint is in the margins of self (which will be a TreePoint)
         False otherwise
         """
-
+        return True  # temporary fix because the poliedro boundaries are all wrong
         for i, boundary in enumerate(self.margins):
             if not (min(boundary) < test_point.latent.a[i] < max(boundary)):
                 # if the feature in test is outside of the boundaries, return bad
