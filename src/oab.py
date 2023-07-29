@@ -6,9 +6,7 @@ import pickle
 import random
 import sqlite3
 import sys
-from collections import UserList
 from pathlib import Path
-from typing import ClassVar
 
 import abele
 import matplotlib.pyplot as plt
@@ -30,13 +28,13 @@ data_table_structure = (
     "a array",
     "latent array",
     "margins array",
-    "DTpredicted int",
+    "DTpredicted str",
     "DTmodel dictionary",
     "DTfidelity float",
     "srules str",
     "scounterrules str",
-    "BBpredicted int",
-    "classes str",
+    "BBpredicted str",
+    "dataset str",
 )
 
 data_path = Path("./data/oab")
@@ -121,24 +119,24 @@ class AAE:
     .discriminate(Point)
     """
 
+    dataset: str
+    metadata: dict
     model = field(init=False, repr=lambda value: f"{type(value)}")
 
     @model.default
     def _model_default(self):
-        mtda = get_dataset_metadata()
-
         ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
-            np.expand_dims(example_record_mnist, axis=0),
-            mtda["ae_name"],
-            mtda["dataset"],
-            mtda["path_aemodels"],
+            np.expand_dims(np.zeros(self.metadata["shape"]), axis=0),
+            self.metadata["ae_name"],
+            self.metadata["dataset"],
+            self.metadata["path_aemodels"],
         )
         ae.load_model()
         return ae
 
     def discriminate(self, point) -> float:
         """
-        pass a Point with latent.a
+        pass a Point containing latent.a
         returns a probability:float
         """
         return self.model.discriminate(np.expand_dims(point.latent.a, axis=0))[0][0]
@@ -152,8 +150,54 @@ class AAE:
 
 @define
 class Domain:
+    dataset: str = field()
+    metadata: dict = field()
     classes: list[str] = field()
-    aae: AAE = field(init=False, default=AAE())
+    ae: AAE = field()
+
+    @dataset.validator
+    def _dataset_validator(self, attribute, value):
+        possible_datasets = {"mnist", "fashion_mnist", "custom"}
+        if value not in possible_datasets:
+            raise ValueError(f"Dataset {value} not implemented.")
+
+    @metadata.default
+    def _metadata_default(self):
+        results = dict()
+        match self.dataset:
+            case "mnist":
+                results["ae_name"] = "aae"
+                results["dataset"] = "mnist"
+                results[
+                    "path_aemodels"
+                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                results["shape"] = (28, 28, 3)
+            case "fashion_mnist":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+        return results
+
+    @classes.default
+    def _classes_default(self):
+        match self.dataset:
+            case "mnist":
+                return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            case "fashion_mnist":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+
+    @ae.default
+    def _ae_default(self):
+        match self.dataset:
+            case "mnist":
+                pass
+            case "fashion_mnist":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+        return AAE(dataset=self.dataset, metadata=self.metadata)
 
 
 @define
@@ -271,7 +315,7 @@ class Latent:
 
 @define
 class Blackbox:
-    predicted_class: int  # index of classes, refers to Domain.classes
+    predicted_class: str  # TODO: do i need to validate this against Domain.classes?
 
 
 @define
@@ -287,10 +331,15 @@ class TreePoint:
         repr=lambda value: f"{type(value)}",
     )
     latent: Latent
-    latentdt: LatentDT
+    latentdt: LatentDT = field()
     blackbox: Blackbox
     domain: Domain
-    # true_class: int  # index of classes, refers to Domain.classes
+    # true_class: int  # TODO: do i need to validate this against Domain.classes?
+
+    @latentdt.validator
+    def _latentdt_validator(self, attribute, value):
+        if value.predicted_class not in self.domain.classes:
+            raise ValueError(f"The {value.predicted_class} is not in the domain")
 
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -308,7 +357,7 @@ class TreePoint:
             self.latentdt.s_rules,
             self.latentdt.s_counterrules,
             self.blackbox.predicted_class,
-            self.domain.classes,
+            self.domain.dataset,
         )
         cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
         con.commit()
@@ -335,7 +384,7 @@ class ImageExplanation:
         I generated a latent.a as either an exemplar or a counterexemplar,
         so now I have to decode it to get the real-space representation of the image
         """
-        return my_domain.aae.decode(self)
+        return my_domain.ae.decode(self)
 
 
 @define
@@ -353,7 +402,7 @@ class TestPoint:
         """
         encodes the TestPoint.a to build TestPoint.Latent.a
         """
-        return Latent(a=my_domain.aae.encode(self), margins=None)
+        return Latent(a=my_domain.ae.encode(self), margins=None)
 
     def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
         """
@@ -393,13 +442,13 @@ class TestPoint:
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.aae.discriminate(new_point) > 0.5:
+            if my_domain.ae.discriminate(new_point) > 0.5:
                 if debug_results:
                     logging.debug(debug_results)
                 return new_point
             else:
                 debug_results = (
-                    f"{debug_results} {my_domain.aae.discriminate(new_point)}"
+                    f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
         raise Exception(
@@ -465,13 +514,13 @@ class TestPoint:
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.aae.discriminate(new_point) > 0.5:
+            if my_domain.ae.discriminate(new_point) > 0.5:
                 if debug_results:
                     logging.debug(debug_results)
                 return new_point
             else:
                 debug_results = (
-                    f"{debug_results} {my_domain.aae.discriminate(new_point)}"
+                    f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
         raise Exception(
@@ -554,7 +603,7 @@ class Explainer:
             if self.save:
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"counterfactual - black box predicted class: xxx"
+                    "counterfactual - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
@@ -578,7 +627,7 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"epsilon factual - black box predicted class: xxx"
+                    "epsilon factual - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
@@ -605,7 +654,7 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    f"factual - black box predicted class: xxx"
+                    "factual - black box predicted class: xxx"
                 )  # TODO: substitute xxx -> point.blackbox.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
@@ -669,7 +718,7 @@ def knn(point: TestPoint) -> TreePoint:
 
         fitted_model = neigh.kneighbors([point.latent.a])
         # if I need the distance it's here…
-        distance: np.float64 = fitted_model[0][0][0]
+        fitted_model[0][0][0]: np.float64
         index: np.int64 = fitted_model[1][0][0]
 
         # check the margins of the latent space (poliedro check)
@@ -726,7 +775,6 @@ def load(id: int) -> None | TreePoint:
             row = row[0]  # there is only one row anyway
             assert id == row["id"]
 
-            # TODO: rebuild LatentDT.model from json
             rebuilt_dt = skljson.from_dict(row["DTmodel"])
 
             # TODO: can i automate this based on the db schema?
@@ -745,7 +793,7 @@ def load(id: int) -> None | TreePoint:
                     s_counterrules=row["scounterrules"],
                 ),
                 blackbox=Blackbox(predicted_class=row["BBpredicted"]),
-                domain=Domain(classes=row["classes"]),
+                domain=Domain(dataset=row["dataset"]),
             )
     else:
         raise ValueError(f"id was not an int: {id}")
@@ -821,7 +869,7 @@ sqlite3.register_adapter(np.ndarray, _adapt_array)
 sqlite3.register_converter("array", _convert_array)
 sqlite3.register_adapter(dict, lambda d: json.dumps(d).encode("utf8"))
 sqlite3.register_converter("dictionary", lambda d: json.loads(d.decode("utf8")))
-my_domain = Domain(classes_mnist)
+my_domain = Domain(dataset="mnist")
 
 
 if __name__ == "__main__":
@@ -832,21 +880,35 @@ if __name__ == "__main__":
     we have a sqlite populated with trainpoints.
     """
     try:
-        run_options = sys.argv[1]
+        dataset = sys.argv[1]
+        run_option = sys.argv[2]
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
+            (dataset) mnist
+            and then:
             (testing) delete-all, run-tests, test-train <how many to load>,
             (production) train, list
             
+            examples:
+            python oab.py mnist delete-all
+            python oab.py mnist test-train 8000
+
             to use this to explain a record, must use it in a python script (refer to documentation)"""
         )
 
-    if run_options == "delete-all":
+    match dataset:
+        case "mnist":
+            my_domain = Domain(dataset="mnist")
+        case _:
+            raise NotImplementedError
+
+    if run_option == "delete-all":
         # delete create table
         _delete_create_table()
-        print(f"done {run_options}")
-    elif run_options == "run-tests":
+        print(f"done {my_domain} {run_option}")
+    elif run_option == "run-tests":
+        raise NotImplementedError
         miao = load(0)
         miao.id = 12155
         miao.save()
@@ -864,16 +926,14 @@ if __name__ == "__main__":
         console.print(table)
         print("[red]Example:[/]")
         print(load(12155))
-    elif run_options in (
-        "train",
-        "test-train",
-    ):  # test-train should be used until real train run
+    elif run_option in ("train", "test-train"):
+        # test-train should be used until real train run
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
-        if run_options == "test-train":
+        if run_option == "test-train":
             # only for test purposes
-            X_tree = X_tree[: int(sys.argv[2])]
-            Y_tree = Y_tree[: int(sys.argv[2])]
+            X_tree = X_tree[: int(sys.argv[3])]
+            Y_tree = Y_tree[: int(sys.argv[3])]
 
         for i, point in enumerate(X_tree):
             try:
@@ -888,7 +948,6 @@ if __name__ == "__main__":
 
             # the following creates the actual data point
             # TODO: can i automate this also based on db schema?
-            print(tosave["neigh_bounding_box"].transpose())
             miao = TreePoint(
                 id=i,
                 a=point,
@@ -904,10 +963,10 @@ if __name__ == "__main__":
                     s_counterrules=tosave["cstr"],
                 ),
                 blackbox=Blackbox(predicted_class=tosave["bb_pred"]),
-                domain=Domain(classes="test xxx"),
+                domain=Domain(dataset="mnist"),
             )
             miao.save()
-    elif run_options == "list":
+    elif run_option == "list":
         all_records = list_all()
         if all_records:
             print(all_records)
