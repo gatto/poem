@@ -333,8 +333,8 @@ class TreePoint:
     )
     latent: Latent
     latentdt: LatentDT = field()
-    blackbox: Blackbox
-    domain: Domain = field()
+    blackbox: Blackbox = field()
+    domain: Domain
     # true_class: int  # TODO: do i need to validate this against Domain.classes?
 
     @latentdt.validator
@@ -344,8 +344,8 @@ class TreePoint:
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
-    @domain.validator
-    def _domain_validator(self, attribute, value):
+    @blackbox.validator
+    def _blackbox_validator(self, attribute, value):
         if value.predicted_class not in self.domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
