@@ -119,8 +119,8 @@ class AAE:
     .discriminate(Point)
     """
 
-    dataset: str
-    metadata: dict
+    dataset: str = field()
+    metadata: dict = field()
     model = field(init=False, repr=lambda value: f"{type(value)}")
 
     @model.default
