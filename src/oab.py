@@ -8,7 +8,6 @@ import sqlite3
 import sys
 from pathlib import Path
 
-import abele
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
@@ -22,8 +21,6 @@ from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
 
 ## CODE EXECUTED BEFORE LIBRARY DEFINITION
-classes_mnist = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-example_record_mnist = np.zeros((28, 28, 3))
 data_table_structure = (
     "id int",
     "a array",
@@ -126,7 +123,8 @@ class AAE:
 
     @model.default
     def _model_default(self):
-        ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder(
+        # ae: abele.adversarial.AdversarialAutoencoderMnist
+        ae = get_autoencoder(
             np.expand_dims(np.zeros(self.metadata["shape"]), axis=0),
             self.metadata["ae_name"],
             self.metadata["dataset"],
@@ -203,7 +201,7 @@ class Domain:
 
 @define
 class LatentDT:
-    predicted_class: str  # TODO: do i need to validate this against Domain.classes?
+    predicted_class: str = field(converter=str)
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
     # TODO: set s_rules and s_counterrules to repr=False
@@ -316,7 +314,9 @@ class Latent:
 
 @define
 class Blackbox:
-    predicted_class: str  # TODO: do i need to validate this against Domain.classes?
+    predicted_class: str = field(
+        converter=str
+    )  # TODO: do i need to validate this against Domain.classes?
 
 
 @define
