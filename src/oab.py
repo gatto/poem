@@ -151,7 +151,12 @@ class AAE:
 class Domain:
     dataset: str = field()
     metadata: dict = field()
-    classes: list[str] = field()
+    classes: list[str] = field(
+        validator=validators.deep_iterable(
+            member_validator=validators.instance_of(str),
+            iterable_validator=validators.instance_of(list),
+        )
+    )
     ae: AAE = field()
 
     @dataset.validator
@@ -207,10 +212,7 @@ class LatentDT:
     # TODO: set s_rules and s_counterrules to repr=False
     s_rules: str = field()
     s_counterrules: str = field()
-    model_json: dict = field(
-        init=False,
-        repr=lambda value: f"{type(value)}",
-    )
+    model_json: dict = field(init=False, repr=False)
     rules: ComplexRule = field(init=False)
     counterrules: list[Rule] = field(init=False)
 
@@ -314,9 +316,7 @@ class Latent:
 
 @define
 class Blackbox:
-    predicted_class: str = field(
-        converter=str
-    )  # TODO: do i need to validate this against Domain.classes?
+    predicted_class: str = field(converter=str)
 
 
 @define
@@ -334,13 +334,22 @@ class TreePoint:
     latent: Latent
     latentdt: LatentDT = field()
     blackbox: Blackbox
-    domain: Domain
+    domain: Domain = field()
     # true_class: int  # TODO: do i need to validate this against Domain.classes?
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
         if value.predicted_class not in self.domain.classes:
-            raise ValueError(f"The {value.predicted_class} is not in the domain")
+            raise ValueError(
+                f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
+            )
+
+    @domain.validator
+    def _domain_validator(self, attribute, value):
+        if value.predicted_class not in self.domain.classes:
+            raise ValueError(
+                f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
+            )
 
     def save(self):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -936,7 +945,7 @@ if __name__ == "__main__":
             X_tree = X_tree[: int(sys.argv[3])]
             Y_tree = Y_tree[: int(sys.argv[3])]
 
-        for i, point in track(enumerate(X_tree)):
+        for i, point in enumerate(track(X_tree)):
             try:
                 with open(
                     Path(get_dataset_metadata()["path_aemodels"])
