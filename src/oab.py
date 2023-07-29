@@ -119,8 +119,8 @@ class AAE:
     .discriminate(Point)
     """
 
-    dataset: str = field()
-    metadata: dict = field()
+    dataset: str = field(repr=None)
+    metadata: dict = field(repr=None)
     model = field(init=False, repr=lambda value: f"{type(value)}")
 
     @model.default
@@ -956,13 +956,13 @@ if __name__ == "__main__":
                     margins=tosave["neigh_bounding_box"].transpose(),
                 ),
                 latentdt=LatentDT(
-                    predicted_class=tosave["dt_pred"],
+                    predicted_class=str(tosave["dt_pred"]),
                     model=tosave["dt"],
                     fidelity=tosave["fidelity"],
                     s_rules=str(tosave["rstr"]),
                     s_counterrules=tosave["cstr"],
                 ),
-                blackbox=Blackbox(predicted_class=tosave["bb_pred"]),
+                blackbox=Blackbox(predicted_class=str(tosave["bb_pred"])),
                 domain=Domain(dataset="mnist"),
             )
             miao.save()
