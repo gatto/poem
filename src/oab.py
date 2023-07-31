@@ -421,6 +421,9 @@ class TreePoint:
         con.commit()
         con.close()
 
+    def keys(self):
+        return [x for x in dir(self) if x[:1] != "_"]
+
 
 @define
 class ImageExplanation:
@@ -1018,7 +1021,7 @@ if __name__ == "__main__":
             X_tree = X_tree[: int(sys.argv[3])]
             Y_tree = Y_tree[: int(sys.argv[3])]
 
-        for i, point in enumerate(track(X_tree), description="Loading on sql…"):
+        for i, point in enumerate(track(X_tree, description="Loading on sql…")):
             try:
                 with open(
                     Path(get_dataset_metadata()["path_aemodels"])
