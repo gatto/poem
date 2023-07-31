@@ -380,10 +380,10 @@ class TreePoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
+    domain: Domain
     latent: Latent
     latentdt: LatentDT = field()
     blackboxpd: BlackboxPD = field()
-    domain: Domain
     # true_class: str  # TODO: do i need to validate this against Domain.classes?
 
     @latentdt.validator
@@ -456,8 +456,8 @@ class TestPoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
-    blackboxpd: BlackboxPD = field()
     domain: Domain
+    blackboxpd: BlackboxPD = field()
     latent: Latent = field(init=False)
 
     @blackboxpd.default
