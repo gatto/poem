@@ -13,7 +13,13 @@ import numpy as np
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
-from mnist import get_autoencoder, get_data, get_dataset_metadata, run_explain
+from mnist import (
+    get_autoencoder,
+    get_black_box,
+    get_data,
+    get_dataset_metadata,
+    run_explain,
+)
 from rich import print
 from rich.console import Console
 from rich.progress import track
@@ -21,6 +27,13 @@ from rich.table import Table
 from sklearn.neighbors import NearestNeighbors
 
 ## CODE EXECUTED BEFORE LIBRARY DEFINITION
+"""
+Places to update when adding something to the sql db:
+- data_table_structure
+- TreePoint.save()
+- .load()
+- in main, in `elif run_option in ("train", "test-train"):`
+"""
 data_table_structure = (
     "id int",
     "a array",
@@ -41,14 +54,7 @@ operators = [">=", "<=", ">", "<"]
 geq = {">=", ">"}
 
 
-# TODO: class Condition anziché Rule mantengo l'attributo "is_continuous"
-# e class Rule diventa l'intero insieme di predicate da rispettare e/o falsificare
-# TODO: rendere eps / 10 * numero random
-# in modo da poter avere multipli controesemplari diversi
 # TODO: eps non può essere numero statico ma deve confrontarsi con varianza della distribuzione tree_set
-# TODO: trovare un modo più semplice possibile per la generazione dei prototipi positivi accantonando
-# il metodo di abele per la generazione.
-# ad esempio: ho un array [1, 2, 5, 3] ci aggiungo un epsilon nella direzione delle regole positive (rispettandole quindi)
 
 
 @define
@@ -68,10 +74,8 @@ class Rule:
     feature: int
     operator: str
     value: float
-    # is_continuous: bool TODO: add this
-    # TODO: make target_class an index of Domain.classes again?
-    # remember to correct the rule/counterrules extraction in LatentDT
     target_class: str
+    # is_continuous: bool TODO: add this
 
     def respects_rule(self, my_value) -> bool:
         match self.operator:
@@ -109,6 +113,45 @@ class ComplexRule:
 
 
 @define
+class Blackbox:
+    """
+    model is a dict that contains
+    { "predict": the predict function
+    "predict_proba": the predict_proba function }
+    """
+
+    dataset: str = field(repr=False, validator=validators.instance_of(str))
+    model: dict = field(init=False, repr=lambda value: f"{value.keys()}")
+
+    @model.default
+    def _model_default(self) -> dict:
+        match self.dataset:
+            case "mnist":
+                black_box = "RF"
+                use_rgb = False  # g with mnist dataset
+                black_box_filename = f"./data/models/mnist_{black_box}"
+
+                results = dict()
+                results["predict"], results["predict_proba"] = get_black_box(
+                    black_box, black_box_filename, use_rgb
+                )
+                return results
+                # the original usage is: Y_pred = bb_predict(X_test)
+            case "fashion_mnist":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+
+    def predict(self, point):
+        return self.model["predict"](point.a)
+
+
+@define
+class BlackboxPD:
+    predicted_class: str = field(converter=str)
+
+
+@define
 class AAE:
     """
     Methods:
@@ -117,7 +160,7 @@ class AAE:
     .discriminate(Point)
     """
 
-    dataset: str = field(repr=False)
+    dataset: str = field(repr=False, validator=validators.instance_of(str))
     metadata: dict = field(repr=False)
     model = field(init=False, repr=lambda value: f"{type(value)}")
 
@@ -158,6 +201,7 @@ class Domain:
         )
     )
     ae: AAE = field()
+    blackbox: Blackbox = field()
 
     @dataset.validator
     def _dataset_validator(self, attribute, value):
@@ -203,6 +247,17 @@ class Domain:
                 raise NotImplementedError
         return AAE(dataset=self.dataset, metadata=self.metadata)
 
+    @blackbox.default
+    def _blackbox_default(self):
+        match self.dataset:
+            case "mnist":
+                pass
+            case "fashion_mnist":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+        return Blackbox(dataset=self.dataset)
+
 
 @define
 class LatentDT:
@@ -220,6 +275,7 @@ class LatentDT:
     def _model_json_default(self):
         return skljson.to_dict(self.model)
 
+    # TODO: remember to correct the rule/counterrules extraction in LatentDT
     @rules.default
     def _rules_default(self):
         """
@@ -294,9 +350,7 @@ class Latent:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
     )
-    # TODO
     margins: np.ndarray | None = field(default=None)
-    # space: bool
 
     # TODO: a validator for self.margins that checks that len(margins) == len(a) (or it's None)
 
@@ -315,11 +369,6 @@ class Latent:
 
 
 @define
-class Blackbox:
-    predicted_class: str = field(converter=str)
-
-
-@define
 class TreePoint:
     """
     TreePoint.id is the index of the record in the passed dataset
@@ -333,9 +382,9 @@ class TreePoint:
     )
     latent: Latent
     latentdt: LatentDT = field()
-    blackbox: Blackbox = field()
+    blackboxpd: BlackboxPD = field()
     domain: Domain
-    # true_class: int  # TODO: do i need to validate this against Domain.classes?
+    # true_class: str  # TODO: do i need to validate this against Domain.classes?
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
@@ -344,8 +393,8 @@ class TreePoint:
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
-    @blackbox.validator
-    def _blackbox_validator(self, attribute, value):
+    @blackboxpd.validator
+    def _blackboxpd_validator(self, attribute, value):
         if value.predicted_class not in self.domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
@@ -355,7 +404,6 @@ class TreePoint:
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
         cur = con.cursor()
 
-        # TODO: can i automate this also based on db schema?
         data = (
             self.id,
             self.a,
@@ -366,7 +414,7 @@ class TreePoint:
             self.latentdt.fidelity,
             self.latentdt.s_rules,
             self.latentdt.s_counterrules,
-            self.blackbox.predicted_class,
+            self.blackboxpd.predicted_class,
             self.domain.dataset,
         )
         cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
@@ -382,11 +430,16 @@ class ImageExplanation:
     """
 
     latent: Latent
-    blackbox: Blackbox  # TODO: insert predicted class
+    blackboxpd: BlackboxPD = field()
     a: np.ndarray = field(
         init=False,
         repr=lambda value: f"{type(value)}",
     )
+
+    @blackboxpd.default
+    def _blackboxpd_default(self):
+        # TODO: insert predicted class
+        return BlackboxPD(predicted_class=None)
 
     @a.default
     def _a_default(self):
@@ -403,9 +456,14 @@ class TestPoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
-    blackbox: Blackbox
+    blackboxpd: BlackboxPD = field()
     domain: Domain
     latent: Latent = field(init=False)
+
+    @blackboxpd.default
+    def _blackboxpd_default(self):
+        # TODO: insert predicted class
+        return BlackboxPD(predicted_class=None)
 
     @latent.default
     def _latent_default(self):
@@ -414,7 +472,7 @@ class TestPoint:
         """
         return Latent(a=my_domain.ae.encode(self), margins=None)
 
-    def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation:
+    def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation | None:
         """
         **Used for counterfactual image generation**
 
@@ -427,32 +485,30 @@ class TestPoint:
 
         TODO: eps possibly belonging to Domain? Must calculate it feature
         by feature or possible to have one eps for entire domain?
-
-        TODO: this is completely deterministic so if it doesn't pass discriminator
-        first time, it won't pass it ever
-        Should we introduce randomness? Or is the setting of feature value
-        close to the decision boundary already guaranteeing that the point will
-        be accepted by discriminator?
         """
 
         debug_results = ""
         # cycles UP TO 40 times to get one point passing the discriminator
-        for i in range(40):
+        for i in range(1, 41):
+            # i multiply by i because if the discriminator doesn't accept the record then I
+            # start getting further and further from the decision boundary
+            # hoping that at some point the value will be accepted by discriminator.
             value_to_overwrite = (
-                rule.value + eps if rule.operator in geq else rule.value - eps
+                rule.value + eps * i if rule.operator in geq else rule.value - eps * i
             )
 
             # THIS IS THE IMAGEEXPLANATION GENERATION
+            # TODO: insert blackbox classification
             new_point = ImageExplanation(
                 latent=Latent(a=copy.deepcopy(self.latent.a), margins=None),
-                blackbox=None,
+                blackboxpd=None,
             )
             new_point.latent.a[rule.feature] = value_to_overwrite
 
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) > 0.5:
+            if my_domain.ae.discriminate(new_point) >= 0.5:
                 if debug_results:
                     logging.debug(debug_results)
                 return new_point
@@ -461,9 +517,7 @@ class TestPoint:
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
-        raise Exception(
-            f"apparently we had lots of trouble with .marginal_apply() on this point:\n{self}"
-        )
+        return
 
     def perturb(
         self, complexrule: ComplexRule, eps=0.01, old_method=False
@@ -519,8 +573,8 @@ class TestPoint:
 
             new_point = ImageExplanation(
                 latent=Latent(a=np.asarray(my_generated_record), margins=None),
-                blackbox=None,
-            )
+                blackboxpd=None,
+            )  # TODO: insert blackboxpd
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
@@ -546,8 +600,8 @@ class TestPoint:
         my_point = load(0)
         return cls(
             a=my_point.a,
-            blackbox=Blackbox(predicted_class=my_point.blackbox.predicted_class),
-            domain=Domain(classes=my_point.domain.classes),
+            blackboxpd=BlackboxPD(predicted_class=my_point.blackboxpd.predicted_class),
+            domain=Domain(dataset="mnist"),
         )
 
 
@@ -577,6 +631,7 @@ class Explainer:
     this is what oab.py returns when you ask an explanation
 
     testpoint: an input point to explain
+    dataset: name of the standard dataset (supported datasets are in Domain._dataset_validator)
     howmany:int how many prototypes (positive exemplars) to generate. The number of counterfactuals
         generated is always == the number of counterrules.
     save: whether to save generated exemplars to data_path (for testing purposes)
@@ -584,6 +639,7 @@ class Explainer:
     """
 
     testpoint: TestPoint
+    dataset: str = field(default="mnist")
     howmany: int = field(default=3)
     save: bool = field(default=False)
     target: TreePoint = field(init=False)
@@ -610,14 +666,16 @@ class Explainer:
         for i, rule in enumerate(self.target.latentdt.counterrules):
             point: ImageExplanation = self.testpoint.marginal_apply(rule)
 
-            if self.save:
-                plt.imshow(point.a.astype("uint8"), cmap="gray")
-                plt.title(
-                    "counterfactual - black box predicted class: xxx"
-                )  # TODO: substitute xxx -> point.blackbox.predicted_class
-                plt.savefig(data_path / f"counter_{i}.png", dpi=150)
-
-            results.append(point)
+            # it might be that we can't get an image accepted by the
+            # discriminator. Therefore might be that point is None
+            if point:
+                results.append(point)
+                if self.save:
+                    plt.imshow(point.a.astype("uint8"), cmap="gray")
+                    plt.title(
+                        "counterfactual - black box predicted class: xxx"
+                    )  # TODO: substitute xxx -> point.blackboxpd.predicted_class
+                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} counterfactuals.")
         return results
@@ -638,7 +696,7 @@ class Explainer:
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
                     "epsilon factual - black box predicted class: xxx"
-                )  # TODO: substitute xxx -> point.blackbox.predicted_class
+                )  # TODO: substitute xxx -> point.blackboxpd.predicted_class
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} epsilon-factuals.")
@@ -665,7 +723,7 @@ class Explainer:
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
                     "factual - black box predicted class: xxx"
-                )  # TODO: substitute xxx -> point.blackbox.predicted_class
+                )  # TODO: substitute xxx -> point.blackboxpd.predicted_class
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} factuals.")
@@ -700,10 +758,6 @@ class Explainer:
         explanation = Explainer.from_array(a:np.ndarray)
         """
         return cls()
-
-
-def decode_rules(str) -> list[Rule]:
-    pass
 
 
 def knn(point: TestPoint) -> TreePoint:
@@ -760,10 +814,10 @@ def list_all() -> list[int]:
     return sorted([x["id"] for x in rows])
 
 
-def load(id: int) -> None | TreePoint:
+def load(id: int | set | list | tuple) -> None | TreePoint:
     """
     Loads a TrainPoint if you pass an id:int
-    TODO: Loads a set of TrainPoint if you pass an id: collection
+    Loads a list of TrainPoints ordered by id if you pass a collection
     """
     if isinstance(id, int):
         con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -787,7 +841,6 @@ def load(id: int) -> None | TreePoint:
 
             rebuilt_dt = skljson.from_dict(row["DTmodel"])
 
-            # TODO: can i automate this based on the db schema?
             return TreePoint(
                 id=id,
                 a=row["a"],
@@ -802,11 +855,17 @@ def load(id: int) -> None | TreePoint:
                     s_rules=row["srules"],
                     s_counterrules=row["scounterrules"],
                 ),
-                blackbox=Blackbox(predicted_class=row["BBpredicted"]),
+                blackboxpd=BlackboxPD(predicted_class=row["BBpredicted"]),
                 domain=Domain(dataset=row["dataset"]),
             )
+    elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
+        to_load = sorted([x for x in id])
+        results = []
+        for i in to_load:
+            results.append(load(i))
+        return results
     else:
-        raise ValueError(f"id was not an int: {id}")
+        raise TypeError(f"id was of an unrecognized type: {type(id)}")
 
 
 def load_all() -> list[TreePoint]:
@@ -830,12 +889,26 @@ def _data_table_structure_query() -> str:
     return f"{my_query[:-2]})"
 
 
-def _connect():
+@define
+class Connection:
     # TODO: insert a check that the table exists using
     # res = cur.execute("SELECT name FROM sqlite_master WHERE name='spam'")
     # res.fetchone() is None
-    pass
     # return cur
+    # TODO: implement this and substitute this everywhere
+    method: str
+    connect: str = field()
+
+    @connect.default
+    def _connect_default(self):
+        pass
+
+    def __enter__(self):
+        self.file = open(self.file_name, "w")
+        return self.file
+
+    def __exit__(self, *args):
+        self.file.close()
 
 
 def _delete_create_table() -> None:
@@ -945,7 +1018,7 @@ if __name__ == "__main__":
             X_tree = X_tree[: int(sys.argv[3])]
             Y_tree = Y_tree[: int(sys.argv[3])]
 
-        for i, point in enumerate(track(X_tree)):
+        for i, point in enumerate(track(X_tree), description="Loading on sql…"):
             try:
                 with open(
                     Path(get_dataset_metadata()["path_aemodels"])
@@ -957,7 +1030,6 @@ if __name__ == "__main__":
                 tosave = run_explain(i, X_tree, Y_tree)
 
             # the following creates the actual data point
-            # TODO: can i automate this also based on db schema?
             miao = TreePoint(
                 id=i,
                 a=point,
@@ -972,7 +1044,7 @@ if __name__ == "__main__":
                     s_rules=str(tosave["rstr"]),
                     s_counterrules=tosave["cstr"],
                 ),
-                blackbox=Blackbox(predicted_class=str(tosave["bb_pred"])),
+                blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
                 domain=Domain(dataset="mnist"),
             )
             miao.save()
