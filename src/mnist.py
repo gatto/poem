@@ -587,7 +587,7 @@ if __name__ == "__main__":
             black_box,
             black_box_filename,
             use_rgb,
-            random_state,
+            967,
         )  # g this fits and saves bb to disk
         bb_predict, bb_predict_proba = get_black_box(
             black_box, black_box_filename, use_rgb
