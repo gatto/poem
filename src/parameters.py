@@ -1,7 +1,7 @@
 from pathlib import Path
 
 ae_name = "aae"
-random_state = 0
+random_state = None
 dataset = "mnist"
 black_box = "RF"
 use_rgb = False  # g with mnist dataset
