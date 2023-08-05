@@ -26,16 +26,36 @@ from keras.utils import plot_model
 
 def sampling(args):
     mu, log_var = args
-    epsilon = K.random_normal(shape=K.shape(mu), mean=0., stddev=1.)
+    epsilon = K.random_normal(shape=K.shape(mu), mean=0.0, stddev=1.0)
     return mu + K.exp(log_var / 2) * epsilon
 
 
 class AdversarialAutoencoder(Autoencoder):
-
-    def __init__(self, shape, input_dim, latent_dim=4, hidden_dim=512, alpha=0.2, verbose=False,
-                 store_intermediate=False, save_graph=False, path='./', name='aae'):
-        super(AdversarialAutoencoder, self).__init__(shape, input_dim, latent_dim, hidden_dim, alpha, verbose,
-                                                     store_intermediate, save_graph, path, name)
+    def __init__(
+        self,
+        shape,
+        input_dim,
+        latent_dim=4,
+        hidden_dim=512,
+        alpha=0.2,
+        verbose=False,
+        store_intermediate=False,
+        save_graph=False,
+        path="./",
+        name="aae",
+    ):
+        super(AdversarialAutoencoder, self).__init__(
+            shape,
+            input_dim,
+            latent_dim,
+            hidden_dim,
+            alpha,
+            verbose,
+            store_intermediate,
+            save_graph,
+            path,
+            name,
+        )
 
     @abstractmethod
     def build_encoder(self):
@@ -50,12 +70,13 @@ class AdversarialAutoencoder(Autoencoder):
         return
 
     def init(self):
-
         optimizer = Adam(0.0002, 0.5)
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+        self.discriminator.compile(
+            loss="binary_crossentropy", optimizer=optimizer, metrics=["accuracy"]
+        )
 
         # Build the encoder / decoder
         self.encoder = self.build_encoder()
@@ -63,7 +84,7 @@ class AdversarialAutoencoder(Autoencoder):
 
         x = Input(shape=self.shape)
         # The generator takes the image, encodes it and reconstructs it from the encoding
-        lx = self.encoder(x)   # latent representation (latent x)
+        lx = self.encoder(x)  # latent representation (latent x)
         tx = self.decoder(lx)  # reconstructed record (tilde x)
 
         # For the adversarial_autoencoder model we will only train the generator
@@ -75,18 +96,31 @@ class AdversarialAutoencoder(Autoencoder):
         # The adversarial_autoencoder model  (stacked generator and discriminator)
         self.autoencoder = Model(x, [tx, validity])
 
-        self.autoencoder.compile(loss=['mse', 'binary_crossentropy'], loss_weights=[0.999, 0.001], optimizer=optimizer)
+        self.autoencoder.compile(
+            loss=["mse", "binary_crossentropy"],
+            loss_weights=[0.999, 0.001],
+            optimizer=optimizer,
+        )
         if self.verbose:
             self.autoencoder.summary()
 
         if self.save_graph:
-            plot_model(self.encoder, to_file='%s%s_encoder.png' % (self.path, self.name))
-            plot_model(self.decoder, to_file='%s%s_decoder.png' % (self.path, self.name))
-            plot_model(self.autoencoder, to_file='%s%s_adversarial.png' % (self.path, self.name))
-            plot_model(self.discriminator, to_file='%s%s_discriminator.png' % (self.path, self.name))
+            plot_model(
+                self.encoder, to_file="%s%s_encoder.png" % (self.path, self.name)
+            )
+            plot_model(
+                self.decoder, to_file="%s%s_decoder.png" % (self.path, self.name)
+            )
+            plot_model(
+                self.autoencoder,
+                to_file="%s%s_adversarial.png" % (self.path, self.name),
+            )
+            plot_model(
+                self.discriminator,
+                to_file="%s%s_discriminator.png" % (self.path, self.name),
+            )
 
     def fit(self, X, epochs=30000, batch_size=128, sample_interval=100):
-
         self.init()
         X = self.img_normalize(X)
 
@@ -96,7 +130,6 @@ class AdversarialAutoencoder(Autoencoder):
 
         past = datetime.now()
         for epoch in range(epochs):
-
             # ---------------------
             #  Train Discriminator
             # ---------------------
@@ -123,8 +156,18 @@ class AdversarialAutoencoder(Autoencoder):
             now = datetime.now()
             # Plot the progress
             if self.verbose and epoch % sample_interval == 0:
-                print("Epoch %d/%d, %.2f [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]" % (
-                    epoch, epochs, (now - past).total_seconds(), d_loss[0], 100*d_loss[1], g_loss[0], g_loss[1]))
+                print(
+                    "Epoch %d/%d, %.2f [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]"
+                    % (
+                        epoch,
+                        epochs,
+                        (now - past).total_seconds(),
+                        d_loss[0],
+                        100 * d_loss[1],
+                        g_loss[0],
+                        g_loss[1],
+                    )
+                )
             past = now
 
             # If at save interval => save generated image samples
@@ -139,20 +182,39 @@ class AdversarialAutoencoder(Autoencoder):
 
 
 class AdversarialAutoencoderMnist(AdversarialAutoencoder):
-
-    def __init__(self, shape, input_dim, latent_dim=4, hidden_dim=512, alpha=0.2, verbose=False,
-                 store_intermediate=False, save_graph=False, path='./', name='aae'):
-        super(AdversarialAutoencoderMnist, self).__init__(shape, input_dim, latent_dim, hidden_dim, alpha, verbose,
-                                                          store_intermediate, save_graph, path, name)
+    def __init__(
+        self,
+        shape,
+        input_dim,
+        latent_dim=4,
+        hidden_dim=512,
+        alpha=0.2,
+        verbose=False,
+        store_intermediate=False,
+        save_graph=False,
+        path="./",
+        name="aae",
+    ):
+        super(AdversarialAutoencoderMnist, self).__init__(
+            shape,
+            input_dim,
+            latent_dim,
+            hidden_dim,
+            alpha,
+            verbose,
+            store_intermediate,
+            save_graph,
+            path,
+            name,
+        )
 
     def img_normalize(self, X):
         return (X.astype(np.float32) - 127.5) / 127.5
 
     def img_denormalize(self, X):
-        return (X * 127.5 + 127.5).astype(np.int)
+        return (X * 127.5 + 127.5).astype(int)
 
     def build_encoder(self):
-
         x = Input(shape=self.shape)
         h = Flatten()(x)
         h = Dense(self.hidden_dim)(h)
@@ -170,13 +232,12 @@ class AdversarialAutoencoderMnist(AdversarialAutoencoder):
         return model
 
     def build_decoder(self):
-
         model = Sequential()
         model.add(Dense(self.hidden_dim, input_dim=self.latent_dim))
         model.add(LeakyReLU(alpha=self.alpha))
         model.add(Dense(self.hidden_dim))
         model.add(LeakyReLU(alpha=self.alpha))
-        model.add(Dense(self.input_dim, activation='tanh'))
+        model.add(Dense(self.input_dim, activation="tanh"))
         model.add(Reshape(self.shape))
         if self.verbose:
             model.summary()
@@ -187,37 +248,55 @@ class AdversarialAutoencoderMnist(AdversarialAutoencoder):
         return Model(z, tx)
 
     def build_discriminator(self):
-
         model = Sequential()
         model.add(Dense(self.hidden_dim, input_dim=self.latent_dim))
         model.add(LeakyReLU(alpha=self.alpha))
-        model.add(Dense(self.hidden_dim//2))
+        model.add(Dense(self.hidden_dim // 2))
         model.add(LeakyReLU(alpha=self.alpha))
-        model.add(Dense(1, activation='sigmoid'))
+        model.add(Dense(1, activation="sigmoid"))
         if self.verbose:
             model.summary()
 
-        encoded_repr = Input(shape=(self.latent_dim, ))
+        encoded_repr = Input(shape=(self.latent_dim,))
         validity = model(encoded_repr)
 
         return Model(encoded_repr, validity)
 
 
 class AdversarialAutoencoderCifar10(AdversarialAutoencoder):
-
-    def __init__(self, shape, input_dim, latent_dim=4, hidden_dim=128, alpha=0.2, verbose=False,
-                 store_intermediate=False, save_graph=False, path='./', name='aae'):
-        super(AdversarialAutoencoderCifar10, self).__init__(shape, input_dim, latent_dim, hidden_dim, alpha, verbose,
-                                                            store_intermediate, save_graph, path, name)
+    def __init__(
+        self,
+        shape,
+        input_dim,
+        latent_dim=4,
+        hidden_dim=128,
+        alpha=0.2,
+        verbose=False,
+        store_intermediate=False,
+        save_graph=False,
+        path="./",
+        name="aae",
+    ):
+        super(AdversarialAutoencoderCifar10, self).__init__(
+            shape,
+            input_dim,
+            latent_dim,
+            hidden_dim,
+            alpha,
+            verbose,
+            store_intermediate,
+            save_graph,
+            path,
+            name,
+        )
 
     def img_normalize(self, X):
         return X.astype(np.float32) / 255.0
 
     def img_denormalize(self, X):
-        return (X * 255).astype(np.int)
+        return (X * 255).astype(int)
 
     def build_encoder(self):
-
         x = Input(shape=self.shape)
 
         # h = Conv2D(64, (3, 3), padding='same')(x)
@@ -235,13 +314,15 @@ class AdversarialAutoencoderCifar10(AdversarialAutoencoder):
         # h = Activation('relu')(h)
         # h = MaxPooling2D((2, 2), padding='same')(h)
 
-        h = Conv2D(3, kernel_size=(2, 2), padding='same', activation='relu')(x)
-        h = Conv2D(32, kernel_size=(2, 2), padding='same', activation='relu', strides=(2, 2))(h)
-        h = Conv2D(32, kernel_size=3, padding='same', activation='relu', strides=1)(h)
-        h = Conv2D(32, kernel_size=3, padding='same', activation='relu', strides=1)(h)
+        h = Conv2D(3, kernel_size=(2, 2), padding="same", activation="relu")(x)
+        h = Conv2D(
+            32, kernel_size=(2, 2), padding="same", activation="relu", strides=(2, 2)
+        )(h)
+        h = Conv2D(32, kernel_size=3, padding="same", activation="relu", strides=1)(h)
+        h = Conv2D(32, kernel_size=3, padding="same", activation="relu", strides=1)(h)
 
         h = Flatten()(h)
-        h = Dense(self.hidden_dim, activation='relu')(h)
+        h = Dense(self.hidden_dim, activation="relu")(h)
         mu = Dense(self.latent_dim)(h)
         log_var = Dense(self.latent_dim)(h)
         lx = Lambda(sampling)([mu, log_var])
@@ -253,10 +334,9 @@ class AdversarialAutoencoderCifar10(AdversarialAutoencoder):
         return model
 
     def build_decoder(self):
-
         lx = Input(shape=(self.latent_dim,))
 
-        h = Dense(self.hidden_dim, activation='relu')(lx)
+        h = Dense(self.hidden_dim, activation="relu")(lx)
         # h = Dense(self.hidden_dim * 2, activation='relu')(h)
         # h = Reshape((4, 4, 16))(h)
         #
@@ -279,12 +359,18 @@ class AdversarialAutoencoderCifar10(AdversarialAutoencoder):
         # h = BatchNormalization()(h)
         # h = Activation('sigmoid')(h)
 
-        h = Dense(32 * 16 * 16, activation='relu')(h)
+        h = Dense(32 * 16 * 16, activation="relu")(h)
         h = Reshape((16, 16, 32))(h)
-        h = Conv2DTranspose(32, kernel_size=3, padding='same', strides=1, activation='relu')(h)
-        h = Conv2DTranspose(32, kernel_size=3, padding='same', strides=1, activation='relu')(h)
-        h = Conv2DTranspose(32, kernel_size=(3, 3), strides=(2, 2), padding='valid', activation='relu')(h)
-        h = Conv2D(3, kernel_size=2, padding='valid', activation='sigmoid')(h)
+        h = Conv2DTranspose(
+            32, kernel_size=3, padding="same", strides=1, activation="relu"
+        )(h)
+        h = Conv2DTranspose(
+            32, kernel_size=3, padding="same", strides=1, activation="relu"
+        )(h)
+        h = Conv2DTranspose(
+            32, kernel_size=(3, 3), strides=(2, 2), padding="valid", activation="relu"
+        )(h)
+        h = Conv2D(3, kernel_size=2, padding="valid", activation="sigmoid")(h)
 
         model = Model(lx, h)
         if self.verbose:
@@ -293,24 +379,22 @@ class AdversarialAutoencoderCifar10(AdversarialAutoencoder):
         return model
 
     def build_discriminator(self):
-
         model = Sequential()
         model.add(Dense(self.hidden_dim, input_dim=self.latent_dim))
         model.add(LeakyReLU(alpha=self.alpha))
-        model.add(Dense(self.hidden_dim//2))
+        model.add(Dense(self.hidden_dim // 2))
         model.add(LeakyReLU(alpha=self.alpha))
-        model.add(Dense(1, activation='sigmoid'))
+        model.add(Dense(1, activation="sigmoid"))
         if self.verbose:
             model.summary()
 
-        encoded_repr = Input(shape=(self.latent_dim, ))
+        encoded_repr = Input(shape=(self.latent_dim,))
         validity = model(encoded_repr)
 
         return Model(encoded_repr, validity)
 
 
 def main():
-
     # Load the dataset
     (_, _), (X_test, Y_test) = mnist.load_data()
 
@@ -324,15 +408,23 @@ def main():
     verbose = True
     store_intermediate = True
 
-    path = './mnist/aae/'
-    name = 'mnist_aae_%d' % latent_dim
+    path = "./mnist/aae/"
+    name = "mnist_aae_%d" % latent_dim
 
     epochs = 10000
     batch_size = 128
     sample_interval = 200
 
-    aae = AdversarialAutoencoderMnist(shape=shape, input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim,
-                                      verbose=verbose, store_intermediate=store_intermediate, path=path, name=name)
+    aae = AdversarialAutoencoderMnist(
+        shape=shape,
+        input_dim=input_dim,
+        latent_dim=latent_dim,
+        hidden_dim=hidden_dim,
+        verbose=verbose,
+        store_intermediate=store_intermediate,
+        path=path,
+        name=name,
+    )
 
     aae.fit(X, epochs=epochs, batch_size=batch_size, sample_interval=sample_interval)
     # aae.save_model()
@@ -340,5 +432,5 @@ def main():
     aae.sample_images(epochs)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
