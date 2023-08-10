@@ -115,9 +115,8 @@ class ComplexRule:
 @define
 class Blackbox:
     """
-    model is a dict that contains
-    { "predict": the predict function
-    "predict_proba": the predict_proba function }
+    Usage:
+    Blackbox.predict(point) returns a class prediction of type str
     """
 
     dataset: str = field(repr=False, validator=validators.instance_of(str))
@@ -238,6 +237,9 @@ class Domain:
 
     @ae.default
     def _ae_default(self):
+        """
+        this works already too
+        """
         match self.dataset:
             case "mnist":
                 pass
@@ -249,6 +251,9 @@ class Domain:
 
     @blackbox.default
     def _blackbox_default(self):
+        """
+        this works already
+        """
         match self.dataset:
             case "mnist":
                 pass
@@ -261,10 +266,13 @@ class Domain:
 
 @define
 class LatentDT:
+    """
+    All attributes non-optional except .model_json, .rules and .counterrules
+    """
+
     predicted_class: str = field(converter=str)
     model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
-    # TODO: set s_rules and s_counterrules to repr=False
     s_rules: str = field()
     s_counterrules: str = field()
     model_json: dict = field(init=False, repr=False)
@@ -275,7 +283,7 @@ class LatentDT:
     def _model_json_default(self):
         return skljson.to_dict(self.model)
 
-    # TODO: remember to correct the rule/counterrules extraction in LatentDT
+    # TODO: remember to correct the rule/counterrules extraction in LatentDT: counterrules may be both simple and ComplexRule
     @rules.default
     def _rules_default(self):
         """
@@ -344,6 +352,10 @@ class LatentDT:
 class Latent:
     """
     a: the record in latent representation
+    margins: the margins of the neighborhood that was generated around a, if any. Is None if I generate myself the latent.a instead
+    of getting it from Abele: in this case there never was a generated neighborhood for the point.
+
+    Construction: Latent(a:np.ndarray, margins=np.ndarray | None, )
     """
 
     a: np.ndarray = field(
@@ -352,7 +364,15 @@ class Latent:
     )
     margins: np.ndarray | None = field(default=None)
 
-    # TODO: a validator for self.margins that checks that len(margins) == len(a) (or it's None)
+    @margins.validator
+    def _margins_validator(self, attribute, value):
+        """
+        This checks that len(margins) == len(a). This must be true or there is a coherency error somewhere.
+        """
+        if len(value) != len(self.a):
+            raise ValueError(
+                f"The len of {attribute}:{type(value)} == {value}\nis not equal to the len of the array a."
+            )
 
     def __contains__(self, test_point) -> bool:
         """
@@ -360,7 +380,7 @@ class Latent:
         returns True if test_point:TestPoint is in the margins of self (which will be a TreePoint)
         False otherwise
         """
-        return True  # temporary fix because the poliedro boundaries are all wrong
+        # return True  # temporary fix because the poliedro boundaries are all wrong
         for i, boundary in enumerate(self.margins):
             if not (min(boundary) < test_point.latent.a[i] < max(boundary)):
                 # if the feature in test is outside of the boundaries, return bad
@@ -373,6 +393,10 @@ class TreePoint:
     """
     TreePoint.id is the index of the record in the passed dataset
     TreePoint.a is the original array in real space
+    TreePoint.domain is the Domain object representing the domain of the problem. See Domain for construction
+    TreePoint.latent is the point's latent space containing its repr and its margins. See Latent
+
+    Construction: TreePoint(id:int, a:np.ndarray, domain=Domain(•), latent=Latent(•), latentdt=LatentDT)
     """
 
     id: int = field(validator=validators.instance_of(int))
@@ -383,7 +407,7 @@ class TreePoint:
     domain: Domain
     latent: Latent
     latentdt: LatentDT = field()
-    blackboxpd: BlackboxPD = field()
+    blackboxpd: BlackboxPD = field(init=False)
     # true_class: str  # TODO: do i need to validate this against Domain.classes?
 
     @latentdt.validator
@@ -392,6 +416,10 @@ class TreePoint:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
+
+    @blackboxpd.default
+    def _blackboxpd_default(self):
+        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
 
     @blackboxpd.validator
     def _blackboxpd_validator(self, attribute, value):
@@ -430,19 +458,17 @@ class ImageExplanation:
     """
     The main purpose of this is to automate the decoding of the latent.a:np.ndarray
     into an a:np.ndarray in the real space
+    Also, to get the blackbox prediction for this
+
+    Construction: ImageExplanation(latent=Latent(•))
     """
 
     latent: Latent
-    blackboxpd: BlackboxPD = field()
     a: np.ndarray = field(
         init=False,
         repr=lambda value: f"{type(value)}",
     )
-
-    @blackboxpd.default
-    def _blackboxpd_default(self):
-        # TODO: insert predicted class
-        return BlackboxPD(predicted_class=None)
+    blackboxpd: BlackboxPD = field(init=False)
 
     @a.default
     def _a_default(self):
@@ -452,6 +478,10 @@ class ImageExplanation:
         """
         return my_domain.ae.decode(self)
 
+    @blackboxpd.default
+    def _blackboxpd_default(self):
+        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
+
 
 @define
 class TestPoint:
@@ -460,18 +490,18 @@ class TestPoint:
         repr=lambda value: f"{type(value)}",
     )
     domain: Domain
-    blackboxpd: BlackboxPD = field()
+    blackboxpd: BlackboxPD = field(init=False)
     latent: Latent = field(init=False)
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        # TODO: insert predicted class
-        return BlackboxPD(predicted_class=None)
+        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
 
     @latent.default
     def _latent_default(self):
         """
-        encodes the TestPoint.a to build TestPoint.Latent.a
+        encodes the TestPoint.a to build TestPoint.Latent.a.
+        Has no margins bc as a test point we did not and will not generate a neighborhood
         """
         return Latent(a=my_domain.ae.encode(self), margins=None)
 
@@ -486,6 +516,11 @@ class TestPoint:
         returns a TestPoint with Latent.a[2] == 5.0 + eps
         (regardless of what feature 2's value was in the original TestPoint)
 
+        If the record is then rejected by discriminator, try again with
+        Latent.a[2] == 5.0 + eps * 2
+        then Latent.a[2] == 5.0 + eps * 3
+        up to 40 tries. If still fails discrim, then fail and return None
+
         TODO: eps possibly belonging to Domain? Must calculate it feature
         by feature or possible to have one eps for entire domain?
         """
@@ -493,7 +528,7 @@ class TestPoint:
         debug_results = ""
         # cycles UP TO 40 times to get one point passing the discriminator
         for i in range(1, 41):
-            # i multiply by i because if the discriminator doesn't accept the record then I
+            # I multiply by i because if the discriminator doesn't accept the record then I
             # start getting further and further from the decision boundary
             # hoping that at some point the value will be accepted by discriminator.
             value_to_overwrite = (
@@ -520,7 +555,7 @@ class TestPoint:
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
-        return
+        return None
 
     def perturb(
         self, complexrule: ComplexRule, eps=0.01, old_method=False
@@ -793,8 +828,7 @@ def knn(point: TestPoint) -> TreePoint:
             # if it's in the margins
             break
         else:
-            # otherwise, pop that point (don't need it)
-            # and start again
+            # otherwise, pop that point (don't need it) and start again
             print("popped a point")
             points.pop(index)
             latent_arrays.pop(index)

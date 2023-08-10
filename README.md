@@ -5,6 +5,7 @@ This project includes a contribution on the ABELE explainability pipeline. TODO:
 # API reference
 
 ## Example usage
+
 ```py
 from oab import Explainer, TestPoint
 exp = Explainer(TestPoint.generate_test())
@@ -156,6 +157,10 @@ TODO: representation of Latent.a is the actual array if it's shorter than e.g. 1
 
 √ Blackbox
 -predicted class
+
+### at end of development
+
+- set s_rules and s_counterrules to repr=False in class LatentDT
 
 ## dir of `ae: abele.adversarial.AdversarialAutoencoderMnist = get_autoencoder()` object
 
