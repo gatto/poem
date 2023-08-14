@@ -119,8 +119,6 @@ of an execution of 1:22 minutes:seconds, neighgen_fn(img, num_samples) takes 1:1
 
 TODO: extract and set the Domain.classes array.
 
-TODO: representation of Latent.a is the actual array if it's shorter than e.g. 10, <np.ndarray> if it's longer
-
 ## some development notes
 
 ```json

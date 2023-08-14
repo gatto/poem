@@ -151,7 +151,7 @@ class BlackboxPD:
 
 
 @define
-class AAE:
+class AE:
     """
     Methods:
     .encode(Point)
@@ -191,6 +191,15 @@ class AAE:
 
 @define
 class Domain:
+    """
+    EXCEPT FOR A "CUSTOM" DATASET, WHICH WILL NOT BE IMPLEMENTED,
+
+    Automatically knows everything it needs to know just by constructing it like:
+    Domain(dataset="mnist | xxx")
+
+    It has metadata set, clases set, fetches ae and blackbox from files
+    """
+
     dataset: str = field()
     metadata: dict = field()
     classes: list[str] = field(
@@ -199,7 +208,7 @@ class Domain:
             iterable_validator=validators.instance_of(list),
         )
     )
-    ae: AAE = field()
+    ae: AE = field()
     blackbox: Blackbox = field()
 
     @dataset.validator
@@ -247,7 +256,7 @@ class Domain:
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
-        return AAE(dataset=self.dataset, metadata=self.metadata)
+        return AE(dataset=self.dataset, metadata=self.metadata)
 
     @blackbox.default
     def _blackbox_default(self):
@@ -505,7 +514,7 @@ class TestPoint:
         """
         return Latent(a=my_domain.ae.encode(self), margins=None)
 
-    def marginal_apply(self, rule: Rule, eps=0.01) -> ImageExplanation | None:
+    def marginal_apply(self, rule: Rule, eps=0.04) -> ImageExplanation | None:
         """
         **Used for counterfactual image generation**
 
@@ -536,10 +545,8 @@ class TestPoint:
             )
 
             # THIS IS THE IMAGEEXPLANATION GENERATION
-            # TODO: insert blackbox classification
             new_point = ImageExplanation(
                 latent=Latent(a=copy.deepcopy(self.latent.a), margins=None),
-                blackboxpd=None,
             )
             new_point.latent.a[rule.feature] = value_to_overwrite
 
@@ -558,7 +565,7 @@ class TestPoint:
         return None
 
     def perturb(
-        self, complexrule: ComplexRule, eps=0.01, old_method=False
+        self, complexrule: ComplexRule, eps=0.04, old_method=False
     ) -> ImageExplanation:
         """
         **Used for factual image generation**
@@ -610,9 +617,8 @@ class TestPoint:
                 my_generated_record.append(generated_value)
 
             new_point = ImageExplanation(
-                latent=Latent(a=np.asarray(my_generated_record), margins=None),
-                blackboxpd=None,
-            )  # TODO: insert blackboxpd
+                latent=Latent(a=np.asarray(my_generated_record), margins=None)
+            )
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
@@ -625,7 +631,7 @@ class TestPoint:
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
-        raise Exception(
+        raise RuntimeError(
             f"apparently we had lots of trouble perturbing this point:\n{self}"
         )
 
@@ -674,10 +680,19 @@ class Explainer:
         generated is always == the number of counterrules.
     save: whether to save generated exemplars to data_path (for testing purposes)
     target: the TreePoint most similar to testpoint
+
+    Offers methods:
+    .more_factuals(): generate more factuals, return them, and also extend .factuals with them.
+    .from_array(
+        a: np.ndarray,
+        dataset: str,
+        howmany: int = 3,
+        save: bool = False
+        ): intended entry point to Explainer, explain from array a
+    .from_file(): intended entry point to Explainer, explain from file
     """
 
     testpoint: TestPoint
-    dataset: str = field(default="mnist")
     howmany: int = field(default=3)
     save: bool = field(default=False)
     target: TreePoint = field(init=False)
@@ -711,8 +726,8 @@ class Explainer:
                 if self.save:
                     plt.imshow(point.a.astype("uint8"), cmap="gray")
                     plt.title(
-                        "counterfactual - black box predicted class: xxx"
-                    )  # TODO: substitute xxx -> point.blackboxpd.predicted_class
+                        f"counterfactual - black box predicted class: {point.blackboxpd.predicted_class}"
+                    )
                     plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} counterfactuals.")
@@ -733,15 +748,15 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    "epsilon factual - black box predicted class: xxx"
-                )  # TODO: substitute xxx -> point.blackboxpd.predicted_class
+                    f"epsilon factual - black box predicted class: {point.blackboxpd.predicted_class}"
+                )
                 plt.savefig(data_path / f"fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} epsilon-factuals.")
         return results
 
     @factuals.default
-    def factuals_default(self):
+    def _factuals_default(self):
         logging.info(f"Doing factuals with target point id={self.target.id}")
         results = []
 
@@ -760,12 +775,42 @@ class Explainer:
             for i, point in enumerate(results):
                 plt.imshow(point.a.astype("uint8"), cmap="gray")
                 plt.title(
-                    "factual - black box predicted class: xxx"
-                )  # TODO: substitute xxx -> point.blackboxpd.predicted_class
+                    f"factual - black box predicted class: {point.blackboxpd.predicted_class}"
+                )
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} factuals.")
         return results
+
+    def more_factuals(self) -> list[ImageExplanation]:
+        more = self._factuals_default()
+
+        self.factuals = self.factuals.extend(more)
+        return more
+
+    @classmethod
+    def from_array(
+        cls, a: np.ndarray, dataset: str, howmany: int = 3, save: bool = False
+    ):
+        """
+        This is the main method that should be exposed externally.
+        intended usage:
+
+        from oab import Explainer
+        explanation = Explainer.from_array(a:np.ndarray)
+        """
+
+        if dataset == "custom":
+            raise NotImplementedError
+
+        if dataset not in ("mnist", "fashion_mnist", "custom"):
+            raise ValueError(f"Dataset {dataset} not implemented.")
+
+        return cls(
+            testpoint=TestPoint(a=a, domain=Domain(dataset=dataset)),
+            howmany=howmany,
+            save=save,
+        )
 
     @classmethod
     def from_file(cls, my_path: Path):
@@ -784,18 +829,7 @@ class Explainer:
         3. generate Explainer which will contain TestPoint
         """
 
-        return cls()
-
-    @classmethod
-    def from_array(cls, a: np.ndarray):
-        """
-        This is the main method that should be exposed externally.
-        intended usage:
-
-        from oab import Explainer
-        explanation = Explainer.from_array(a:np.ndarray)
-        """
-        return cls()
+        return cls.from_array("xxx")
 
 
 def knn(point: TestPoint) -> TreePoint:
@@ -812,15 +846,13 @@ def knn(point: TestPoint) -> TreePoint:
         # this while loop's purpose is to continue looking for 1-nn sample points
         # if the first sample point result `points[index]` is discarded because TestPoint
         # is not in the sampled point's margins
-        # TODO: ensure a stopping condition exists for this while loop
         neigh = NearestNeighbors(n_neighbors=1)
 
         # I train this on the np.ndarray latent repr of the points,
         neigh.fit(latent_arrays)
 
         fitted_model = neigh.kneighbors([point.latent.a])
-        # if I need the distance it's here…
-        fitted_model[0][0][0]: np.float64
+        # if I need the distance it's here… fitted_model[0][0][0]: np.float64
         index: np.int64 = fitted_model[1][0][0]
 
         # check the margins of the latent space (poliedro check)
@@ -1019,6 +1051,8 @@ if __name__ == "__main__":
 
     match dataset:
         case "mnist":
+            # TODO: am I creating a Domain for each TreePoint? Is that horrible?
+            # should I find a way to just use this my_domain everywhere?
             my_domain = Domain(dataset="mnist")
         case _:
             raise NotImplementedError
