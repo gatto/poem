@@ -142,7 +142,8 @@ class Blackbox:
                 raise NotImplementedError
 
     def predict(self, a):
-        return self.model["predict"](a)
+        print(miao := self.model["predict"](np.expand_dims(a, axis=0)))
+        return miao
 
 
 @define
