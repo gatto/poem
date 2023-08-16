@@ -141,8 +141,8 @@ class Blackbox:
             case "custom":
                 raise NotImplementedError
 
-    def predict(self, point):
-        return self.model["predict"](point.a)
+    def predict(self, a):
+        return self.model["predict"](a)
 
 
 @define
