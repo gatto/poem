@@ -422,18 +422,18 @@ class TreePoint:
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
-        if value.predicted_class not in self.domain.classes:
+        if value.predicted_class not in my_domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
 
     @blackboxpd.validator
     def _blackboxpd_validator(self, attribute, value):
-        if value.predicted_class not in self.domain.classes:
+        if value.predicted_class not in my_domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
@@ -643,7 +643,7 @@ class TestPoint:
         (it's the point with id=0 in the sql db)
         """
         my_point = load(0)
-        return cls(a=my_point.a, domain=Domain(dataset="mnist"))
+        return cls(a=my_point.a, domain=my_domain)
 
 
 def ranking_knn(
@@ -804,7 +804,7 @@ class Explainer:
             raise ValueError(f"Dataset {dataset} not implemented.")
 
         return cls(
-            testpoint=TestPoint(a=a, domain=Domain(dataset=dataset)),
+            testpoint=TestPoint(a=a, domain=my_domain),
             howmany=howmany,
             save=save,
         )
@@ -921,7 +921,7 @@ def load(id: int | set | list | tuple) -> None | TreePoint:
                     s_rules=row["srules"],
                     s_counterrules=row["scounterrules"],
                 ),
-                domain=Domain(dataset=row["dataset"]),
+                domain=my_domain,
             )  # blackboxpd=BlackboxPD(predicted_class=row["BBpredicted"]),
 
     elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
@@ -1050,7 +1050,8 @@ if __name__ == "__main__":
         case "mnist":
             # TODO: am I creating a Domain for each TreePoint? Is that horrible?
             # should I find a way to just use this my_domain everywhere?
-            my_domain = Domain(dataset="mnist")
+            # my_domain = Domain(dataset="mnist")
+            pass
         case _:
             raise NotImplementedError
 
@@ -1112,7 +1113,7 @@ if __name__ == "__main__":
                     s_rules=str(tosave["rstr"]),
                     s_counterrules=tosave["cstr"],
                 ),
-                domain=Domain(dataset="mnist"),
+                domain=my_domain,
             )
             # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
             # TODO: check if this is the same conceptually of what I extract myself
