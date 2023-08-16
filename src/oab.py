@@ -643,11 +643,7 @@ class TestPoint:
         (it's the point with id=0 in the sql db)
         """
         my_point = load(0)
-        return cls(
-            a=my_point.a,
-            blackboxpd=BlackboxPD(predicted_class=my_point.blackboxpd.predicted_class),
-            domain=Domain(dataset="mnist"),
-        )
+        return cls(a=my_point.a, domain=Domain(dataset="mnist"))
 
 
 def ranking_knn(
@@ -925,9 +921,9 @@ def load(id: int | set | list | tuple) -> None | TreePoint:
                     s_rules=row["srules"],
                     s_counterrules=row["scounterrules"],
                 ),
-                blackboxpd=BlackboxPD(predicted_class=row["BBpredicted"]),
                 domain=Domain(dataset=row["dataset"]),
-            )
+            )  # blackboxpd=BlackboxPD(predicted_class=row["BBpredicted"]),
+
     elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
         to_load = sorted([x for x in id])
         results = []
