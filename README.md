@@ -115,9 +115,7 @@ le spiegazioni proposte (non genera regola, non genera controregola, fallisce la
 
 of an execution of 1:22 minutes:seconds, neighgen_fn(img, num_samples) takes 1:12
 
-## stuff todo
-
-TODO: extract and set the Domain.classes array.
+Abele: 600 records explained in exactly 10 hours
 
 ## some development notes
 

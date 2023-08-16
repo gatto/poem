@@ -378,10 +378,11 @@ class Latent:
         """
         This checks that len(margins) == len(a). This must be true or there is a coherency error somewhere.
         """
-        if len(value) != len(self.a):
-            raise ValueError(
-                f"The len of {attribute}:{type(value)} == {value}\nis not equal to the len of the array a."
-            )
+        if value:  # if margins is None, doesn't matter
+            if len(value) != len(self.a):
+                raise ValueError(
+                    f"The len of {attribute}:{type(value)} == {value}\nis not equal to the len of the array a."
+                )
 
     def __contains__(self, test_point) -> bool:
         """
@@ -512,7 +513,7 @@ class TestPoint:
         encodes the TestPoint.a to build TestPoint.Latent.a.
         Has no margins bc as a test point we did not and will not generate a neighborhood
         """
-        return Latent(a=my_domain.ae.encode(self), margins=None)
+        return Latent(a=my_domain.ae.encode(self))
 
     def marginal_apply(self, rule: Rule, eps=0.04) -> ImageExplanation | None:
         """
@@ -546,7 +547,7 @@ class TestPoint:
 
             # THIS IS THE IMAGEEXPLANATION GENERATION
             new_point = ImageExplanation(
-                latent=Latent(a=copy.deepcopy(self.latent.a), margins=None),
+                latent=Latent(a=copy.deepcopy(self.latent.a)),
             )
             new_point.latent.a[rule.feature] = value_to_overwrite
 
@@ -617,7 +618,7 @@ class TestPoint:
                 my_generated_record.append(generated_value)
 
             new_point = ImageExplanation(
-                latent=Latent(a=np.asarray(my_generated_record), margins=None)
+                latent=Latent(a=np.asarray(my_generated_record))
             )
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
