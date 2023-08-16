@@ -1116,9 +1116,10 @@ if __name__ == "__main__":
                     s_rules=str(tosave["rstr"]),
                     s_counterrules=tosave["cstr"],
                 ),
-                blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
                 domain=Domain(dataset="mnist"),
             )
+            # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
+            # TODO: check if this is the same conceptually of what I extract myself
             miao.save()
     elif run_option == "list":
         all_records = list_all()
