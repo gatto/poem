@@ -378,7 +378,7 @@ class Latent:
         """
         This checks that len(margins) == len(a). This must be true or there is a coherency error somewhere.
         """
-        if value:  # if margins is None, doesn't matter
+        if value is not None:  # if margins is None, doesn't matter
             if len(value) != len(self.a):
                 raise ValueError(
                     f"The len of {attribute}:{type(value)} == {value}\nis not equal to the len of the array a."
