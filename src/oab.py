@@ -866,7 +866,7 @@ def knn(point: TestPoint) -> TreePoint:
             latent_arrays.pop(index)
             continue  # start over
 
-        if point.blackboxpd == points[index].blacboxpd:
+        if point.blackboxpd == points[index].blackboxpd:
             break  # we done
         else:
             # otherwise, pop that point (don't need it) and start again
