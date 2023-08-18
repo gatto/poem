@@ -556,7 +556,7 @@ class TestPoint:
             # No? start again with entire point generation
             if my_domain.ae.discriminate(new_point) >= 0.5:
                 if debug_results:
-                    logging.debug(debug_results)
+                    logging.warning(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -611,7 +611,7 @@ class TestPoint:
                     else:
                         failures_counter += 1
                 if failures_counter > 0:
-                    logging.debug(
+                    logging.warning(
                         f"{failures_counter} failures for feature {feature_id}"
                     )
 
@@ -625,7 +625,7 @@ class TestPoint:
             # No? start again with entire point generation
             if my_domain.ae.discriminate(new_point) > 0.5:
                 if debug_results:
-                    logging.debug(debug_results)
+                    logging.warning(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -858,12 +858,22 @@ def knn(point: TestPoint) -> TreePoint:
         # check the margins of the latent space (poliedro check)
         if point in points[index].latent:
             # if it's in the margins
-            break
+            pass  # go to next check
         else:
             # otherwise, pop that point (don't need it) and start again
-            print("popped a point")
+            logging.warning("popped a point bc of margins")
             points.pop(index)
             latent_arrays.pop(index)
+            continue  # start over
+
+        if point.blackboxpd == points[index].blacboxpd:
+            break  # we done
+        else:
+            # otherwise, pop that point (don't need it) and start again
+            logging.warning("popped a point bc of BlackboxPD mismatch")
+            points.pop(index)
+            latent_arrays.pop(index)
+            continue  # start over
 
     # I return the entire TreePoint though
     return points[index]
