@@ -785,6 +785,9 @@ class Explainer:
         self.factuals = self.factuals.extend(more)
         return more
 
+    def keys(self):
+        return [x for x in dir(self) if x[:1] != "_"]
+
     @classmethod
     def from_array(
         cls, a: np.ndarray, dataset: str, howmany: int = 3, save: bool = False
