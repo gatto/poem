@@ -42,7 +42,7 @@ data_table_structure = (
     "DTpredicted str",
     "DTmodel dictionary",
     "DTfidelity float",
-    "srules str",
+    "srule str",
     "scounterrules str",
     "BBpredicted str",
     "dataset str",
@@ -58,10 +58,10 @@ geq = {">=", ">"}
 
 
 @define
-class Rule:
+class Condition:
     """
-    structure of a Rule:
-    feature:int  the latent feature the rules checks
+    structure of a Condition:
+    feature:int  the latent feature the condition checks
     operator:str  between the following choices:
         - >
         - >=
@@ -89,14 +89,14 @@ class Rule:
                 return True if my_value <= self.value else False
 
 
-def _converter_complexrule(rules):
-    if type(rules) == list:
+def _converter_complexrule(conditions):
+    if type(conditions) == list:
         my_results = {}
-        for rule in rules:
+        for condition in conditions:
             try:
-                my_results[rule.feature].append(rule)
+                my_results[condition.feature].append(condition)
             except KeyError:
-                my_results[rule.feature] = [rule]
+                my_results[condition.feature] = [condition]
         return my_results
 
 
@@ -104,12 +104,12 @@ def _converter_complexrule(rules):
 class ComplexRule:
     """
     Has
-    .rules - dict of Rule.
+    .conditions - dict of Condition.
     Key of the item is the feature number, in the latent space,
-    value of the dict is a list with all Rule objects operating on that feature.
+    value of the dict is a list with all Condition objects operating on that feature.
     """
 
-    rules = field(converter=_converter_complexrule)
+    conditions = field(converter=_converter_complexrule)
 
 
 @define
@@ -276,7 +276,7 @@ class Domain:
 @define
 class LatentDT:
     """
-    All attributes non-optional except .model_json, .rules and .counterrules
+    All attributes non-optional except .model_json, .rule and .counterrules
     """
 
     predicted_class: str = field(converter=str)
@@ -285,24 +285,24 @@ class LatentDT:
     s_rules: str = field()
     s_counterrules: str = field()
     model_json: dict = field(init=False, repr=False)
-    rules: ComplexRule = field(init=False)
-    counterrules: list[Rule] = field(init=False)
+    rule: ComplexRule = field(init=False)
+    counterrules: list[Condition] = field(init=False)
 
     @model_json.default
     def _model_json_default(self):
         return skljson.to_dict(self.model)
 
     # TODO: remember to correct the rule/counterrules extraction in LatentDT: counterrules may be both simple and ComplexRule
-    @rules.default
+    @rule.default
     def _rules_default(self):
         """
-        This converts s_rules:str to rules:ComplexRule
+        This converts s_rules:str to rule:ComplexRule
 
-        REMEMBER THAT positive rules mean you're getting
-        the `target_class` by 'applying' **ALL** the positive rules.
+        REMEMBER THAT positive conditions mean you're getting
+        the `target_class` by 'applying' **ALL** the positive conditions.
 
-        THIS IS DIFFERENT THAN COUNTERRULES where you get the target_class
-        by falsifying only one of the counterrules.
+        THIS IS DIFFERENT THAN COUNTERRULES where you can get the target_class
+        by falsifying only one of the conditions (as long as its a one-condition counterrule).
         """
         results = []
         # str.maketrans's third argument indicates characters to remove with str.translate(•)
@@ -319,7 +319,7 @@ class LatentDT:
                         rule = rule.split(operator)
                         break
                 results.append(
-                    Rule(
+                    Condition(
                         feature=int(rule[0]),
                         operator=operator,
                         value=float(rule[1]),
@@ -331,7 +331,7 @@ class LatentDT:
     @counterrules.default
     def _counterrules_default(self):
         """
-        This converts s_counterrules:str to counterrules:list[Rule]
+        This converts s_counterrules:str to counterrules:list[Condition]
         """
         results = []
         # str.maketrans's third argument indicates characters to remove with str.translate(•)
@@ -347,7 +347,7 @@ class LatentDT:
                         parts[0] = parts[0].split(operator)
                         break
                 results.append(
-                    Rule(
+                    Condition(
                         feature=int(parts[0][0]),
                         operator=operator,
                         value=float(parts[0][1]),
@@ -515,14 +515,14 @@ class TestPoint:
         """
         return Latent(a=my_domain.ae.encode(self))
 
-    def marginal_apply(self, rule: Rule, eps=0.04) -> ImageExplanation | None:
+    def marginal_apply(self, rule: Condition, eps=0.04) -> ImageExplanation | None:
         """
         **Used for counterfactual image generation**
 
-        is used to apply marginally a Rule on a new TestPoint object,
+        is used to apply marginally a Condition on a new TestPoint object,
         Returns an ImageExplanation
 
-        e.g. if the rule is 2 > 5.0
+        e.g. if the condition is 2 > 5.0
         returns a TestPoint with Latent.a[2] == 5.0 + eps
         (regardless of what feature 2's value was in the original TestPoint)
 
@@ -601,12 +601,12 @@ class TestPoint:
 
                     # validate it according to ComplexRule
                     rules_satisfied = 0
-                    for rule in complexrule.rules[feature_id]:
+                    for rule in complexrule.conditions[feature_id]:
                         if rule.respects_rule(generated_value):
                             rules_satisfied += 1
                         else:
                             pass
-                    if rules_satisfied == len(complexrule.rules[feature_id]):
+                    if rules_satisfied == len(complexrule.conditions[feature_id]):
                         generated = True
                     else:
                         failures_counter += 1
@@ -737,7 +737,7 @@ class Explainer:
 
         for factual in range(self.howmany):
             point: ImageExplanation = self.testpoint.perturb(
-                self.target.latentdt.rules, old_method=True
+                self.target.latentdt.rule, old_method=True
             )
             results.append(point)
 
@@ -758,7 +758,7 @@ class Explainer:
         results = []
 
         for factual in range(self.howmany * 10):
-            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
+            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
             results.append(point)
 
         # take the last how_many points, last because I'd like the farthest points
@@ -931,7 +931,7 @@ def load(id: int | set | list | tuple) -> None | TreePoint:
                     predicted_class=row["DTpredicted"],
                     model=rebuilt_dt,
                     fidelity=row["DTfidelity"],
-                    s_rules=row["srules"],
+                    s_rules=row["srule"],
                     s_counterrules=row["scounterrules"],
                 ),
                 domain=my_domain,
