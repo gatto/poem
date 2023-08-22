@@ -2,13 +2,8 @@ import oab
 import matplotlib.pyplot as plt
 import logging
 
-logging.basicConfig(
-    filename="mnist-oab.log",
-    filemode="a",
-    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-    level=logging.INFO,
-)
+logging.basicConfig(filename="mnist-oab.log", encoding="utf-8", level=logging.DEBUG)
+
 
 (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = oab.get_data()
 
