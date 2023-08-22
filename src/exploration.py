@@ -16,7 +16,7 @@ logging.basicConfig(
 my_dom = oab.Domain(dataset="mnist")
 
 # this gives problems: oab.TestPoint(X_test[200], domain=my_dom)
-points = X_test[:2]
+points = X_test[:10]
 
 for i, array in enumerate(points):
     logging.info("Point #%s creation", i)

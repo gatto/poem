@@ -24,13 +24,6 @@ if __name__ == "__main__":
         )
 
 Path("./data").mkdir(exist_ok=True)
-logging.basicConfig(
-    filename="./data/mnist-oab.log",
-    filemode="a",
-    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
-    datefmt="%H:%M:%S",
-    level=logging.WARNING,
-)
 
 
 import matplotlib.pyplot as plt
@@ -153,8 +146,7 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     i.e. the ILORE decision tree
     possibly together with the `tosave` dict
     """
-    logger = logging.getLogger("mnist-oab")
-    logging.warning(f"Start run_explain of {index_tr}")
+    logging.info(f"Start run_explain of {index_tr}")
 
     class_values = ["%s" % i for i in range(len(np.unique(Y)))]
     print(f"Classes are: {class_values}")
@@ -288,13 +280,13 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         bb_predict_proba=bb_predict_proba,
     )
 
-    logging.warning("done creating ILOREM")
+    logging.info("done creating ILOREM")
 
     exp = explainer.explain_instance(
         img, num_samples=1000, use_weights=True, metric=neuclidean
     )
 
-    logging.warning("done .explain_instance")
+    logging.info("done .explain_instance")
 
     print("e = {\n\tr = %s\n\tc = %s}" % (exp.rstr(), exp.cstr()))
     print(f"exp.bb_pred: {exp.bb_pred}")
@@ -381,55 +373,6 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         notify_task(current_user, good=False, task=task)
         exit(1)
 
-    # g and wat tis
-    task = "math1"
-    print(f"Doing [green]{task}[/]")
-    dx, dy = 0.05, 0.05
-    try:
-        xx = np.arange(0.0, img2show.shape[1], dx)
-        yy = np.arange(0.0, img2show.shape[0], dy)
-        xmin, xmax, ymin, ymax = np.amin(xx), np.amax(xx), np.amin(yy), np.amax(yy)
-        extent = xmin, xmax, ymin, ymax
-        cmap_xi = plt.get_cmap("Greys_r")
-        cmap_xi.set_bad(alpha=0)
-    except:
-        notify_task(current_user, good=False, task=task)
-        exit(1)
-
-    task = "math2"
-    print(f"Doing [green]{task}[/]")
-    # Compute edges (to overlay to heatmaps later)
-    percentile = 100
-    dilation = 3.0
-    alpha = 0.8
-    try:
-        xi_greyscale = (
-            img2show if len(img2show.shape) == 2 else np.mean(img2show, axis=-1)
-        )
-        # in_image_upscaled = transform.rescale(xi_greyscale, dilation, mode='constant')
-        in_image_upscaled = xi_greyscale
-        edges = feature.canny(in_image_upscaled).astype(float)
-        edges[edges < 0.5] = np.nan
-        edges[:5, :] = np.nan
-        edges[-5:, :] = np.nan
-        edges[:, :5] = np.nan
-        edges[:, -5:] = np.nan
-        overlay = edges
-    except:
-        notify_task(current_user, good=False, task=task)
-        exit(1)
-
-    print("plot")
-    # plt.pcolormesh(range(mask.shape[0]), range(mask.shape[1]), mask, cmap=plt.cm.BrBG, alpha=1, vmin=0, vmax=255)
-    plt.imshow(mask, extent=extent, cmap=plt.cm.BrBG, alpha=1, vmin=0, vmax=255)
-    plt.imshow(overlay, extent=extent, interpolation="none", cmap=cmap_xi, alpha=alpha)
-    plt.axis("off")
-    plt.title("attention area respecting latent rule")
-    plt.savefig(
-        "./data/aemodels/mnist/aae/explanation/saliency_%s.png" % index_tr, dpi=200
-    )
-    # plt.show()
-
     notify_task(current_user, good=True, task="explanation")
 
 
@@ -456,15 +399,12 @@ logging.info(f"✅ Setup for {current_user} done.")
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("mnist-oab")
     console = Console()
-
-    logger.setLevel(logging.WARNING)
 
     gpus = tf.config.list_physical_devices("GPU")
     logging.info(f"Do we even have a gpu? {'no 🤣' if len(gpus)==0 else gpus}")
     if len(gpus) > 1:
-        logging.info("the code is not optimized for more than 1 gpu")
+        logging.warning("the code is not optimized for more than 1 gpu")
 
     if run_options == "delete-all":
         # Only run if you want this to start over, or you are running this for the first time to create the data folders.
