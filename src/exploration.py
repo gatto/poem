@@ -1,9 +1,15 @@
-import oab
-import matplotlib.pyplot as plt
 import logging
 
-logging.basicConfig(filename="mnist-oab.log", encoding="utf-8", level=logging.DEBUG)
+import matplotlib.pyplot as plt
+import oab
 
+logging.basicConfig(
+    filename="./data/mnist-oab.log",
+    filemode="a",
+    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+    level=logging.INFO,
+)
 
 (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = oab.get_data()
 
@@ -13,7 +19,7 @@ my_dom = oab.Domain(dataset="mnist")
 points = X_test[:2]
 
 for i, array in enumerate(points):
-    logging.info(f"Point #{i} creation")
+    logging.info("Point #%s creation", i)
     test_point = oab.TestPoint(array, my_dom)
-    logging.info(f"Point #{i} explanation")
+    logging.info("Point #%s explanation", i)
     exp = oab.Explainer(test_point)
