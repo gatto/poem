@@ -14,9 +14,10 @@ from rich import print
 my_dom = oab.Domain(dataset="mnist")
 
 howmany_satisfy = 0
-my_points = X_test
+my_points = X_test[:10]
 
-for array in my_points:
+for i, array in enumerate(my_points):
+    logging.info(f"Started on point {i}")
     my_point = oab.TestPoint(a=array, domain=my_dom)
     my_tree_point = oab.knn(my_point)
     if my_point in my_tree_point.latentdt.rule:
