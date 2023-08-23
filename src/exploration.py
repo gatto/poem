@@ -8,7 +8,7 @@ logging.basicConfig(
     filemode="a",
     format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
-    level=logging.INFO,
+    level=logging.ERROR,
 )
 
 (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = oab.get_data()
@@ -16,7 +16,7 @@ logging.basicConfig(
 my_dom = oab.Domain(dataset="mnist")
 
 # this gives problems: oab.TestPoint(X_test[200], domain=my_dom)
-points = X_test[:2]
+points = X_test[:1]
 
 for i, array in enumerate(points):
     logging.info("Point #%s creation", i)
