@@ -14,7 +14,7 @@ from rich import print
 my_dom = oab.Domain(dataset="mnist")
 
 howmany_satisfy = 0
-my_points = X_test[:1]
+my_points = X_test
 
 for array in my_points:
     my_point = oab.TestPoint(a=array, domain=my_dom)
