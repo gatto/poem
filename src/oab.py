@@ -632,7 +632,7 @@ class TestPoint:
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
-        logging.warn(f"we would have runtimerrror here with {debug_results}")
+        logging.error(f"we would have runtimerrror here with {debug_results}")
         pass
 
     @classmethod
