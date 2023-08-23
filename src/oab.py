@@ -123,7 +123,7 @@ class ComplexRule:
         """
 
         features_failing = []
-        for feature_id in range(self.latent.a.shape[0]):
+        for feature_id in range(point.latent.a.shape[0]):
             # validate it according to ComplexRule
             rules_satisfied = 0
             for condition in self.conditions[feature_id]:
