@@ -1,0 +1,77 @@
+18:23:21,538 root INFO ✅ Setup for Fabio done.
+18:23:27,372 root INFO We have False number of train records and True number of tree records: Counter({False: 50000, True: 10000})
+18:23:27,712 root INFO Started on point 0
+18:31:14,973 root WARNING Features failing are:
+feature 1: it's -1.519170880317688 and conditions are [Condition(feature=1, operator='<=', value=-1.25, target_class='7'), Condition(feature=1, operator='>', value=-1.36, target_class='7')]
+
+18:31:14,973 root INFO Started on point 1
+18:39:02,222 root INFO Started on point 2
+18:45:21,673 root INFO Started on point 3
+18:52:04,25 root INFO Started on point 4
+18:59:33,989 root INFO Started on point 5
+19:07:22,418 root INFO Started on point 6
+19:13:35,194 root INFO Started on point 7
+19:20:05,624 root INFO Started on point 8
+19:27:44,312 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,321 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,328 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,335 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,342 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,348 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,354 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,361 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,367 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,373 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,380 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,386 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,392 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,399 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,405 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,411 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,417 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,423 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,430 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,436 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,442 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,448 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,454 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,460 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,466 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,473 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,479 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,485 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,491 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,497 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,503 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,509 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,515 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,521 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,527 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,533 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,540 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,546 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,552 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,558 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,564 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,570 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,576 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,582 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,588 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,594 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,600 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,607 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,613 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,619 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,625 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,631 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,637 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,643 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,650 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,656 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:44,662 root WARNING popped a point bc of BlackboxPD mismatch
+19:27:45,424 root INFO Started on point 9
+19:35:09,690 root WARNING popped a point bc of BlackboxPD mismatch
+19:35:10,778 root WARNING Features failing are:
+feature 2: it's -1.1404653787612915 and conditions are [Condition(feature=2, operator='<=', value=-0.5, target_class='9'), Condition(feature=2, operator='>', value=-0.99, target_class='9')]
+feature 3: it's 0.9020213484764099 and conditions are [Condition(feature=3, operator='<=', value=0.62, target_class='9'), Condition(feature=3, operator='>', value=-0.21, target_class='9')]
+

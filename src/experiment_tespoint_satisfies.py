@@ -14,7 +14,7 @@ from rich import print
 my_dom = oab.Domain(dataset="mnist")
 
 howmany_satisfy = 0
-my_points = X_test[:10]
+my_points = X_test[:100]
 
 for i, array in enumerate(my_points):
     logging.info(f"Started on point {i}")
