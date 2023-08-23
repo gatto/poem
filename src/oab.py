@@ -111,6 +111,36 @@ class ComplexRule:
 
     conditions = field(converter=_converter_complexrule)
 
+    def __contains__(self, point) -> bool:
+        """
+        this is used like this:
+        if Point in my_treepoint.latentdt.rule:
+            pass  # Point respects the rule for that my_treepoint
+        else:
+            pass  # Point does not respect the rule for that my_treepoint
+
+        Point must be either TestPoint or TreePoint or ImageExplanation: anything that has .latent.a
+        """
+
+        features_failing = []
+        for feature_id in range(self.latent.a.shape[0]):
+            # validate it according to ComplexRule
+            rules_satisfied = 0
+            for condition in self.conditions[feature_id]:
+                if condition.respects_rule(point.latent.a[feature_id]):
+                    rules_satisfied += 1
+            if rules_satisfied != len(self.conditions[feature_id]):
+                features_failing.append(feature_id)
+
+        if len(features_failing) == 0:
+            return True
+        else:
+            my_message = "Features failing are:\n"
+            for feature_id in features_failing:
+                my_message = f"{my_message}feature {feature_id}: it's {point.latent.a[feature_id]} and conditions are {self.conditions[feature_id]}\n"
+            logging.warning(my_message)
+            return False
+
 
 @define
 class Blackbox:
@@ -554,7 +584,7 @@ class TestPoint:
             # static set discriminator probability at 0.5
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) >= 0.5:
+            if my_domain.ae.discriminate(new_point) >= 0.35:
                 if debug_results:
                     logging.warning(debug_results)
                 return new_point
@@ -620,10 +650,10 @@ class TestPoint:
             new_point = ImageExplanation(
                 latent=Latent(a=np.asarray(my_generated_record))
             )
-            # static set discriminator probability at 0.5
+            # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) > 0.5:
+            if my_domain.ae.discriminate(new_point) > 0.35:
                 if debug_results:
                     logging.warning(debug_results)
                 return new_point
