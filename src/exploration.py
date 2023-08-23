@@ -23,4 +23,4 @@ for i, array in enumerate(points):
     logging.info("Point #%s creation", i)
     test_point = oab.TestPoint(array, my_dom)
     logging.info("Point #%s explanation", i)
-    exp = oab.Explainer(test_point)
+    exp = oab.Explainer(test_point, save=True)

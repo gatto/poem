@@ -1,5 +1,6 @@
 import pandas as pd
-
+import matplotlib.pyplot as plt
+import numpy as np
 
 my_list = [
     0.43303024768829346,
@@ -43,3 +44,9 @@ my_list = [
 my_pd = pd.Series(my_list)
 
 print(my_pd.describe())
+
+my_img = [1.3860296, 0.8055085, -0.06739918, -0.46]
+
+plt.imshow(np.array(my_img).astype("uint8"), cmap="gray")
+plt.title("factual - black box predicted class")
+plt.show()
