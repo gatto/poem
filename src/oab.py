@@ -601,6 +601,8 @@ class TestPoint:
         # we arrive here if we didn't get a valid point after 40 tries
         return None
 
+    # TODO: fare notebook con 10 immagini per record
+
     def perturb(
         self, complexrule: ComplexRule, eps=0.04, old_method=False
     ) -> ImageExplanation:
@@ -872,9 +874,12 @@ def knn(point: TestPoint) -> TreePoint:
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
     """
+    logging.info("start of knn")
 
     points: list[TreePoint] = load_all()
+    logging.info("loaded all")
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
+    logging.info("done latent_arrays")
     while True:
         if not points:
             raise RuntimeError("We've run out of tree points during knn")
@@ -885,6 +890,7 @@ def knn(point: TestPoint) -> TreePoint:
 
         # I train this on the np.ndarray latent repr of the points,
         neigh.fit(latent_arrays)
+        logging.info("fitted KNN")
 
         fitted_model = neigh.kneighbors([point.latent.a])
         # if I need the distance it's here… fitted_model[0][0][0]: np.float64
@@ -893,6 +899,7 @@ def knn(point: TestPoint) -> TreePoint:
         # check the margins of the latent space (poliedro check)
         if point in points[index].latent:
             # if it's in the margins
+            logging.info("checked margins")
             pass  # go to next check
         else:
             # otherwise, pop that point (don't need it) and start again
@@ -902,6 +909,7 @@ def knn(point: TestPoint) -> TreePoint:
             continue  # start over
 
         if point.blackboxpd == points[index].blackboxpd:
+            logging.info("checked class")
             break  # we done
         else:
             # otherwise, pop that point (don't need it) and start again
