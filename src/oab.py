@@ -587,7 +587,7 @@ class TestPoint:
             )
             new_point.latent.a[rule.feature] = value_to_overwrite
 
-            # static set discriminator probability at 0.5
+            # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
             if my_domain.ae.discriminate(new_point) >= 0.35:
