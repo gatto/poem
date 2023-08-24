@@ -41,6 +41,24 @@ for my_class in range(2, 2 + how_many_classes_todo):
             if len(points[my_class]) >= 3:
                 # how many points to do per class
                 break
-    with open(f"./data/oab/exp3/{my_class}.pickle", "wb") as f:
-        pickle.dump(points[my_class], f, protocol=pickle.HIGHEST_PROTOCOL)
-    del points[my_class]
+
+    print(f"showing class {my_class}")
+    for explainer in points[my_class]:
+        print("rule")
+        print(explainer.target.latentdt.rule)
+        print("factuals")
+        for point in explainer.factuals:
+            plt.imshow(point.a.astype("uint8"), cmap="gray")
+            plt.title(
+                f"factual - black box predicted class: {point.blackboxpd.predicted_class}"
+            )
+            plt.show()
+        print("counterrules")
+        print(explainer.target.latentdt.counterrules)
+        print("counterfactuals")
+        for point in explainer.counterfactuals:
+            plt.imshow(point.a.astype("uint8"), cmap="gray")
+            plt.title(
+                f"counterfactual - black box predicted class: {point.blackboxpd.predicted_class}"
+            )
+            plt.show()
