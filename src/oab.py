@@ -246,7 +246,7 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list = field(init=False)
+    explanation_base: list = field(init=False, default=None)
 
     @dataset.validator
     def _dataset_validator(self, attribute, value):
@@ -309,12 +309,12 @@ class Domain:
                 raise NotImplementedError
         return Blackbox(dataset=self.dataset)
 
-    @explanation_base.default
-    def _explanation_base_default(self):
+    def load(self):
         logging.info("start loading the explanation base")
-        all_records = load_all()
+        print("start loading the explanation base")
+        self.explanation_base = load_all()
         logging.info(f"loaded {len(all_records)} in explanation base")
-        return all_records
+        print(f"loaded {len(all_records)} in explanation base")
 
 
 @define
