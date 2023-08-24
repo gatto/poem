@@ -126,11 +126,17 @@ class ComplexRule:
         for feature_id in range(point.latent.a.shape[0]):
             # validate it according to ComplexRule
             rules_satisfied = 0
-            for condition in self.conditions[feature_id]:
-                if condition.respects_rule(point.latent.a[feature_id]):
-                    rules_satisfied += 1
-            if rules_satisfied != len(self.conditions[feature_id]):
-                features_failing.append(feature_id)
+            try:
+                for condition in self.conditions[feature_id]:
+                    if condition.respects_rule(point.latent.a[feature_id]):
+                        rules_satisfied += 1
+                if rules_satisfied != len(self.conditions[feature_id]):
+                    features_failing.append(feature_id)
+            except KeyError:
+                # We get here if for a certain feature_id there is no self.conditions[feature_id]
+                # If there are no conditions on a feature, then the feature is automatically respecting the rule
+                # So we need to do nothing except keep going to the next features
+                pass
 
         if len(features_failing) == 0:
             return True
