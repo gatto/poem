@@ -739,7 +739,7 @@ class Explainer:
     save: bool = field(default=False)
     target: TreePoint = field(init=False)
     counterfactuals: list[ImageExplanation] = field(init=False)
-    eps_factuals: list[ImageExplanation] = field(init=False)
+    # eps_factuals: list[ImageExplanation] = field(init=False)
     factuals: list[ImageExplanation] = field(init=False)
 
     @howmany.validator
@@ -775,7 +775,7 @@ class Explainer:
         logging.info(f"I made {len(results)} counterfactuals.")
         return results
 
-    @eps_factuals.default
+    # @eps_factuals.default
     def _eps_factuals_default(self):
         logging.info(f"Doing epsilon-factuals with target point id={self.target.id}")
         results = []
