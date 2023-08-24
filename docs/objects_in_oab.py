@@ -17,10 +17,10 @@ relationships = [
     ("TreePoint", "LatentDT", {"what": "input"}),
     ("TreePoint", "BlackboxPD", {"what": "computed"}),
     ("LatentDT", "ComplexRule", {"what": "computed"}),
-    ("LatentDT", "Rule", {"what": "computed"}),  # several
+    ("LatentDT", "Condition", {"what": "computed"}),  # several
     ("Domain", "AE", {"what": "loaded"}),
     ("Domain", "Blackbox", {"what": "loaded"}),
-    ("ComplexRule", "Rule", {"what": "input"}),  # several
+    ("ComplexRule", "Condition", {"what": "input"}),  # several
 ]
 
 G.add_edges_from(relationships)

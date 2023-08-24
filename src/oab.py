@@ -42,7 +42,7 @@ data_table_structure = (
     "DTpredicted str",
     "DTmodel dictionary",
     "DTfidelity float",
-    "srules str",
+    "srule str",
     "scounterrules str",
     "BBpredicted str",
     "dataset str",
@@ -58,10 +58,10 @@ geq = {">=", ">"}
 
 
 @define
-class Rule:
+class Condition:
     """
-    structure of a Rule:
-    feature:int  the latent feature the rules checks
+    structure of a Condition:
+    feature:int  the latent feature the condition checks
     operator:str  between the following choices:
         - >
         - >=
@@ -89,14 +89,14 @@ class Rule:
                 return True if my_value <= self.value else False
 
 
-def _converter_complexrule(rules):
-    if type(rules) == list:
+def _converter_complexrule(conditions):
+    if type(conditions) == list:
         my_results = {}
-        for rule in rules:
+        for condition in conditions:
             try:
-                my_results[rule.feature].append(rule)
+                my_results[condition.feature].append(condition)
             except KeyError:
-                my_results[rule.feature] = [rule]
+                my_results[condition.feature] = [condition]
         return my_results
 
 
@@ -104,12 +104,48 @@ def _converter_complexrule(rules):
 class ComplexRule:
     """
     Has
-    .rules - dict of Rule.
+    .conditions - dict of Condition.
     Key of the item is the feature number, in the latent space,
-    value of the dict is a list with all Rule objects operating on that feature.
+    value of the dict is a list with all Condition objects operating on that feature.
     """
 
-    rules = field(converter=_converter_complexrule)
+    conditions = field(converter=_converter_complexrule)
+
+    def __contains__(self, point) -> bool:
+        """
+        this is used like this:
+        if Point in my_treepoint.latentdt.rule:
+            pass  # Point respects the rule for that my_treepoint
+        else:
+            pass  # Point does not respect the rule for that my_treepoint
+
+        Point must be either TestPoint or TreePoint or ImageExplanation: anything that has .latent.a
+        """
+
+        features_failing = []
+        for feature_id in range(point.latent.a.shape[0]):
+            # validate it according to ComplexRule
+            rules_satisfied = 0
+            try:
+                for condition in self.conditions[feature_id]:
+                    if condition.respects_rule(point.latent.a[feature_id]):
+                        rules_satisfied += 1
+                if rules_satisfied != len(self.conditions[feature_id]):
+                    features_failing.append(feature_id)
+            except KeyError:
+                # We get here if for a certain feature_id there is no self.conditions[feature_id]
+                # If there are no conditions on a feature, then the feature is automatically respecting the rule
+                # So we need to do nothing except keep going to the next features
+                pass
+
+        if len(features_failing) == 0:
+            return True
+        else:
+            my_message = "Features failing are:\n"
+            for feature_id in features_failing:
+                my_message = f"{my_message}feature {feature_id}: it's {point.latent.a[feature_id]} and conditions are {self.conditions[feature_id]}\n"
+            logging.warning(my_message)
+            return False
 
 
 @define
@@ -276,7 +312,7 @@ class Domain:
 @define
 class LatentDT:
     """
-    All attributes non-optional except .model_json, .rules and .counterrules
+    All attributes non-optional except .model_json, .rule and .counterrules
     """
 
     predicted_class: str = field(converter=str)
@@ -285,24 +321,24 @@ class LatentDT:
     s_rules: str = field()
     s_counterrules: str = field()
     model_json: dict = field(init=False, repr=False)
-    rules: ComplexRule = field(init=False)
-    counterrules: list[Rule] = field(init=False)
+    rule: ComplexRule = field(init=False)
+    counterrules: list[Condition] = field(init=False)
 
     @model_json.default
     def _model_json_default(self):
         return skljson.to_dict(self.model)
 
     # TODO: remember to correct the rule/counterrules extraction in LatentDT: counterrules may be both simple and ComplexRule
-    @rules.default
+    @rule.default
     def _rules_default(self):
         """
-        This converts s_rules:str to rules:ComplexRule
+        This converts s_rules:str to rule:ComplexRule
 
-        REMEMBER THAT positive rules mean you're getting
-        the `target_class` by 'applying' **ALL** the positive rules.
+        REMEMBER THAT positive conditions mean you're getting
+        the `target_class` by 'applying' **ALL** the positive conditions.
 
-        THIS IS DIFFERENT THAN COUNTERRULES where you get the target_class
-        by falsifying only one of the counterrules.
+        THIS IS DIFFERENT THAN COUNTERRULES where you can get the target_class
+        by falsifying only one of the conditions (as long as its a one-condition counterrule).
         """
         results = []
         # str.maketrans's third argument indicates characters to remove with str.translate(•)
@@ -319,7 +355,7 @@ class LatentDT:
                         rule = rule.split(operator)
                         break
                 results.append(
-                    Rule(
+                    Condition(
                         feature=int(rule[0]),
                         operator=operator,
                         value=float(rule[1]),
@@ -331,7 +367,7 @@ class LatentDT:
     @counterrules.default
     def _counterrules_default(self):
         """
-        This converts s_counterrules:str to counterrules:list[Rule]
+        This converts s_counterrules:str to counterrules:list[Condition]
         """
         results = []
         # str.maketrans's third argument indicates characters to remove with str.translate(•)
@@ -347,7 +383,7 @@ class LatentDT:
                         parts[0] = parts[0].split(operator)
                         break
                 results.append(
-                    Rule(
+                    Condition(
                         feature=int(parts[0][0]),
                         operator=operator,
                         value=float(parts[0][1]),
@@ -422,18 +458,18 @@ class TreePoint:
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
-        if value.predicted_class not in self.domain.classes:
+        if value.predicted_class not in my_domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
 
     @blackboxpd.validator
     def _blackboxpd_validator(self, attribute, value):
-        if value.predicted_class not in self.domain.classes:
+        if value.predicted_class not in my_domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
@@ -515,14 +551,14 @@ class TestPoint:
         """
         return Latent(a=my_domain.ae.encode(self))
 
-    def marginal_apply(self, rule: Rule, eps=0.04) -> ImageExplanation | None:
+    def marginal_apply(self, rule: Condition, eps=0.04) -> ImageExplanation | None:
         """
         **Used for counterfactual image generation**
 
-        is used to apply marginally a Rule on a new TestPoint object,
+        is used to apply marginally a Condition on a new TestPoint object,
         Returns an ImageExplanation
 
-        e.g. if the rule is 2 > 5.0
+        e.g. if the condition is 2 > 5.0
         returns a TestPoint with Latent.a[2] == 5.0 + eps
         (regardless of what feature 2's value was in the original TestPoint)
 
@@ -551,12 +587,12 @@ class TestPoint:
             )
             new_point.latent.a[rule.feature] = value_to_overwrite
 
-            # static set discriminator probability at 0.5
+            # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) >= 0.5:
+            if my_domain.ae.discriminate(new_point) >= 0.35:
                 if debug_results:
-                    logging.debug(debug_results)
+                    logging.warning(debug_results)
                 return new_point
             else:
                 debug_results = (
@@ -564,6 +600,8 @@ class TestPoint:
                 )
         # we arrive here if we didn't get a valid point after 40 tries
         return None
+
+    # TODO: fare notebook con 10 immagini per record
 
     def perturb(
         self, complexrule: ComplexRule, eps=0.04, old_method=False
@@ -601,17 +639,17 @@ class TestPoint:
 
                     # validate it according to ComplexRule
                     rules_satisfied = 0
-                    for rule in complexrule.rules[feature_id]:
+                    for rule in complexrule.conditions[feature_id]:
                         if rule.respects_rule(generated_value):
                             rules_satisfied += 1
                         else:
                             pass
-                    if rules_satisfied == len(complexrule.rules[feature_id]):
+                    if rules_satisfied == len(complexrule.conditions[feature_id]):
                         generated = True
                     else:
                         failures_counter += 1
                 if failures_counter > 0:
-                    logging.debug(
+                    logging.warning(
                         f"{failures_counter} failures for feature {feature_id}"
                     )
 
@@ -620,21 +658,20 @@ class TestPoint:
             new_point = ImageExplanation(
                 latent=Latent(a=np.asarray(my_generated_record))
             )
-            # static set discriminator probability at 0.5
+            # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) > 0.5:
+            if my_domain.ae.discriminate(new_point) > 0.35:
                 if debug_results:
-                    logging.debug(debug_results)
+                    logging.warning(debug_results)
                 return new_point
             else:
                 debug_results = (
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
-        raise RuntimeError(
-            f"apparently we had lots of trouble perturbing this point:\n{self}"
-        )
+        logging.error(f"we would have runtimerrror here with {debug_results}")
+        pass
 
     @classmethod
     def generate_test(cls):
@@ -643,7 +680,7 @@ class TestPoint:
         (it's the point with id=0 in the sql db)
         """
         my_point = load(0)
-        return cls(a=my_point.a, domain=Domain(dataset="mnist"))
+        return cls(a=my_point.a, domain=my_domain)
 
 
 def ranking_knn(
@@ -737,7 +774,7 @@ class Explainer:
 
         for factual in range(self.howmany):
             point: ImageExplanation = self.testpoint.perturb(
-                self.target.latentdt.rules, old_method=True
+                self.target.latentdt.rule, old_method=True
             )
             results.append(point)
 
@@ -758,7 +795,7 @@ class Explainer:
         results = []
 
         for factual in range(self.howmany * 10):
-            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rules)
+            point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
             results.append(point)
 
         # take the last how_many points, last because I'd like the farthest points
@@ -785,6 +822,9 @@ class Explainer:
         self.factuals = self.factuals.extend(more)
         return more
 
+    def keys(self):
+        return [x for x in dir(self) if x[:1] != "_"]
+
     @classmethod
     def from_array(
         cls, a: np.ndarray, dataset: str, howmany: int = 3, save: bool = False
@@ -804,7 +844,7 @@ class Explainer:
             raise ValueError(f"Dataset {dataset} not implemented.")
 
         return cls(
-            testpoint=TestPoint(a=a, domain=Domain(dataset=dataset)),
+            testpoint=TestPoint(a=a, domain=my_domain),
             howmany=howmany,
             save=save,
         )
@@ -834,9 +874,12 @@ def knn(point: TestPoint) -> TreePoint:
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
     """
+    logging.info("start of knn")
 
     points: list[TreePoint] = load_all()
+    logging.info("loaded all")
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
+    logging.info("done latent_arrays")
     while True:
         if not points:
             raise RuntimeError("We've run out of tree points during knn")
@@ -847,6 +890,7 @@ def knn(point: TestPoint) -> TreePoint:
 
         # I train this on the np.ndarray latent repr of the points,
         neigh.fit(latent_arrays)
+        logging.info("fitted KNN")
 
         fitted_model = neigh.kneighbors([point.latent.a])
         # if I need the distance it's here… fitted_model[0][0][0]: np.float64
@@ -855,12 +899,24 @@ def knn(point: TestPoint) -> TreePoint:
         # check the margins of the latent space (poliedro check)
         if point in points[index].latent:
             # if it's in the margins
-            break
+            logging.info("checked margins")
+            pass  # go to next check
         else:
             # otherwise, pop that point (don't need it) and start again
-            print("popped a point")
+            logging.warning("popped a point bc of margins")
             points.pop(index)
             latent_arrays.pop(index)
+            continue  # start over
+
+        if point.blackboxpd == points[index].blackboxpd:
+            logging.info("checked class")
+            break  # we done
+        else:
+            # otherwise, pop that point (don't need it) and start again
+            logging.warning("popped a point bc of BlackboxPD mismatch")
+            points.pop(index)
+            latent_arrays.pop(index)
+            continue  # start over
 
     # I return the entire TreePoint though
     return points[index]
@@ -918,10 +974,10 @@ def load(id: int | set | list | tuple) -> None | TreePoint:
                     predicted_class=row["DTpredicted"],
                     model=rebuilt_dt,
                     fidelity=row["DTfidelity"],
-                    s_rules=row["srules"],
+                    s_rules=row["srule"],
                     s_counterrules=row["scounterrules"],
                 ),
-                domain=Domain(dataset=row["dataset"]),
+                domain=my_domain,
             )  # blackboxpd=BlackboxPD(predicted_class=row["BBpredicted"]),
 
     elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
@@ -1050,7 +1106,8 @@ if __name__ == "__main__":
         case "mnist":
             # TODO: am I creating a Domain for each TreePoint? Is that horrible?
             # should I find a way to just use this my_domain everywhere?
-            my_domain = Domain(dataset="mnist")
+            # my_domain = Domain(dataset="mnist")
+            pass
         case _:
             raise NotImplementedError
 
@@ -1112,7 +1169,7 @@ if __name__ == "__main__":
                     s_rules=str(tosave["rstr"]),
                     s_counterrules=tosave["cstr"],
                 ),
-                domain=Domain(dataset="mnist"),
+                domain=my_domain,
             )
             # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
             # TODO: check if this is the same conceptually of what I extract myself
