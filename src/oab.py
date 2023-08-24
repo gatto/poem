@@ -246,6 +246,7 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
+    explanation_base: list = field(init=False, default=None)
 
     @dataset.validator
     def _dataset_validator(self, attribute, value):
@@ -307,6 +308,13 @@ class Domain:
             case "custom":
                 raise NotImplementedError
         return Blackbox(dataset=self.dataset)
+
+    @explanation_base.default
+    def _explanation_base_default(self):
+        logging.info("start loading the explanation base")
+        all_records = load_all()
+        logging.info(f"loaded {len(all_records)} in explanation base")
+        return all_records
 
 
 @define
@@ -876,7 +884,7 @@ def knn(point: TestPoint) -> TreePoint:
     """
     logging.info("start of knn")
 
-    points: list[TreePoint] = load_all()
+    points: list[TreePoint] = point.domain.explanation_base
     logging.info("loaded all")
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
     logging.info("done latent_arrays")
