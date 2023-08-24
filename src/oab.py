@@ -246,7 +246,7 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list = field(init=False, default=None)
+    explanation_base: list = field(init=False)
 
     @dataset.validator
     def _dataset_validator(self, attribute, value):
