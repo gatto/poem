@@ -647,15 +647,19 @@ class TestPoint:
 
                     # validate it according to ComplexRule
                     rules_satisfied = 0
-                    for rule in complexrule.conditions[feature_id]:
-                        if rule.respects_rule(generated_value):
-                            rules_satisfied += 1
+                    try:
+                        # try because there might not be any condition insisting on any specific feature
+                        for rule in complexrule.conditions[feature_id]:
+                            if rule.respects_rule(generated_value):
+                                rules_satisfied += 1
+                            else:
+                                pass
+                        if rules_satisfied == len(complexrule.conditions[feature_id]):
+                            generated = True
                         else:
-                            pass
-                    if rules_satisfied == len(complexrule.conditions[feature_id]):
+                            failures_counter += 1
+                    except KeyError:
                         generated = True
-                    else:
-                        failures_counter += 1
                 if failures_counter > 0:
                     logging.warning(
                         f"{failures_counter} failures for feature {feature_id}"
