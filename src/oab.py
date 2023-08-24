@@ -313,8 +313,8 @@ class Domain:
         logging.info("start loading the explanation base")
         print("start loading the explanation base")
         self.explanation_base = load_all()
-        logging.info(f"loaded {len(all_records)} in explanation base")
-        print(f"loaded {len(all_records)} in explanation base")
+        logging.info(f"loaded {len(self.explanation_base)} in explanation base")
+        print(f"loaded {len(self.explanation_base)} in explanation base")
 
 
 @define
