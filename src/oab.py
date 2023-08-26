@@ -559,7 +559,9 @@ class TestPoint:
         """
         return Latent(a=my_domain.ae.encode(self))
 
-    def marginal_apply(self, rule: Condition, eps=0.04) -> ImageExplanation | None:
+    def marginal_apply(
+        self, rule: Condition, eps=0.04, more=False
+    ) -> ImageExplanation | None:
         """
         **Used for counterfactual image generation**
 
@@ -582,6 +584,13 @@ class TestPoint:
         debug_results = ""
         # cycles UP TO 40 times to get one point passing the discriminator
         for i in range(1, 41):
+            # if I'm in the "more" counterfactual generation, I randomly take a multiplicator i
+            # for the epsilon eps to get further away from the decision boundary than usual.
+            # we're still trying up to 40 times, that doesn't change. Except the i is random
+            # instead of being incremental.
+            if more:
+                i = random.randrange(1, 51)
+
             # I multiply by i because if the discriminator doesn't accept the record then I
             # start getting further and further from the decision boundary
             # hoping that at some point the value will be accepted by discriminator.
@@ -607,6 +616,10 @@ class TestPoint:
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
+        if debug_results:
+            logging.error(
+                f"we would have runtimerrror here in .marginal_apply() with {debug_results}"
+            )
         return None
 
     # TODO: fare notebook con 10 immagini per record
@@ -682,7 +695,9 @@ class TestPoint:
                     f"{debug_results} {my_domain.ae.discriminate(new_point)}"
                 )
         # we arrive here if we didn't get a valid point after 40 tries
-        logging.error(f"we would have runtimerrror here with {debug_results}")
+        logging.error(
+            f"we would have runtimerrror here in .perturb() with {debug_results}"
+        )
         pass
 
     @classmethod
@@ -756,14 +771,14 @@ class Explainer:
         return knn(self.testpoint)
 
     @counterfactuals.default
-    def _counterfactuals_default(self):
+    def _counterfactuals_default(self, more=False):
         logging.info(f"Doing counterfactuals with target point id={self.target.id}")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
         results = []
 
         for i, rule in enumerate(self.target.latentdt.counterrules):
-            point: ImageExplanation = self.testpoint.marginal_apply(rule)
+            point: ImageExplanation = self.testpoint.marginal_apply(rule, more=more)
 
             # it might be that we can't get an image accepted by the
             # discriminator. Therefore might be that point is None
@@ -832,6 +847,12 @@ class Explainer:
         more = self._factuals_default()
 
         self.factuals = self.factuals.extend(more)
+        return more
+
+    def more_counterfactuals(self) -> list[ImageExplanation]:
+        more = self._counterfactuals_default(more=True)
+
+        self.counterfactuals = self.counterfactuals.extend(more)
         return more
 
     def keys(self):
