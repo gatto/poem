@@ -259,12 +259,7 @@ if __name__ == "__main__":
     if run_options == "delete-all":
         # Only run if you want this to start over, or you are running this for the first time to create the data folders.
         # g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
-        empty_folder("./data/aemodels/mnist/aae/explanation")
-        empty_folder("./data/aemodels/mnist/aae")
-        empty_folder("./data/models")
-        empty_folder("./data/results/bb")
-        empty_folder("./data/oab")
-        empty_folder("./data")
+
         exit(0)
 
     # # Data understanding

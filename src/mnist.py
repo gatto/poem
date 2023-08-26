@@ -1,7 +1,3 @@
-user_names = ["Fabio", "Carlo"]
-current_user = user_names[0]
-# current_user = user_names[1]    # <<<<------------
-
 import gc
 import json
 import logging
@@ -25,11 +21,11 @@ if __name__ == "__main__":
 
 Path("./data").mkdir(exist_ok=True)
 
-
 import matplotlib.pyplot as plt
 import numpy as np
 import requests
 import tensorflow as tf
+import tg_api_key
 from abele.exputil import get_autoencoder, get_black_box, train_black_box
 from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
@@ -42,7 +38,6 @@ from skimage import feature, transform
 from skimage.color import gray2rgb
 from sklearn.metrics import accuracy_score, classification_report
 from tensorflow.keras.datasets import mnist
-
 
 # parameters
 ae_name = "aae"
@@ -99,55 +94,62 @@ def get_data(dataset: str = "mnist") -> tuple:
     # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
     print("Loading dataset")
 
-    # 2 different alternatives:
-    """
-    # carlo:
-    (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-    X_train = np.expand_dims(X_train, 3)
-    X_test = np.expand_dims(X_test, 3)
-    """
-    # for grayscale:
-    (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-    X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
-    X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
+    match dataset:
+        case "mnist":
+            # for grayscale:
+            (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
+            X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
+            X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 
-    # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-    random.seed("gattonemiao")
-    indexes = random.sample(
-        range(X_train.shape[0]), X_train.shape[0] // 6
-    )  # g get a list of 1/6 indexes of the len of X_train
+            # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+            random.seed("gattonemiao")
+            indexes = random.sample(
+                range(X_train.shape[0]), X_train.shape[0] // 6
+            )  # g get a list of 1/6 indexes of the len of X_train
 
-    indexing_condition = []
-    for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
-        if x in indexes:
-            indexing_condition.append(True)
-        else:
-            indexing_condition.append(False)
-    assert len(indexing_condition) == X_train.shape[0]
+            indexing_condition = []
+            for x in track(
+                range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
+            ):
+                if x in indexes:
+                    indexing_condition.append(True)
+                else:
+                    indexing_condition.append(False)
+            assert len(indexing_condition) == X_train.shape[0]
 
-    logging.info(
-        f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
-    )
+            logging.info(
+                f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
+            )
 
-    indexing_condition = np.array(indexing_condition)
+            indexing_condition = np.array(indexing_condition)
 
-    X_tree = X_train[indexing_condition]
-    Y_tree = Y_train[indexing_condition]
+            X_tree = X_train[indexing_condition]
+            Y_tree = Y_train[indexing_condition]
 
-    X_train = X_train[~indexing_condition]
-    Y_train = Y_train[~indexing_condition]
+            X_train = X_train[~indexing_condition]
+            Y_train = Y_train[~indexing_condition]
+        case "fashion-mnist":
+            pass
+        case _:
+            raise NotImplementedError
 
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
 
-def get_dataset_metadata() -> dict:
+def get_dataset_metadata(dataset: str = "mnist") -> dict:
     results = dict()
-    results["ae_name"] = "aae"
-    results["dataset"] = "mnist"
+    match dataset:
+        case "mnist":
+            results["ae_name"] = "aae"
+            results["dataset"] = "mnist"
 
-    results[
-        "path_aemodels"
-    ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            results[
+                "path_aemodels"
+            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+        case "fashion-mnist":
+            pass
+        case _:
+            raise NotImplementedError
 
     return results
 
@@ -163,82 +165,7 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     class_values = ["%s" % i for i in range(len(np.unique(Y)))]
     print(f"Classes are: {class_values}")
 
-    """
-    def image_generator(filelist, batch_size, mode="train", aug=None):
-        while True:
-            images = []
-            # keep looping until we reach our batch size
-            while len(images) < batch_size:
-                index = random.randrange(0, len(filelist))
-                image = filelist[index]
-                # trainNoise = np.random.normal(loc=0, scale=50, size=image.shape)
-                # trainXNoisy = np.clip(image + trainNoise, 0, 255)
-                # image = trainXNoisy.astype(int)
-                # if we are evaluating we should now break from our
-                # loop to ensure we don't continue to fill up the
-                # batch from samples at the beginning of the file
-                if mode == "eval":
-                    break
-
-                # update our corresponding batches lists
-                images.append(image)
-
-            if aug is not None:
-                images = next(aug.flow(np.array(images), batch_size=batch_size))
-
-            yield np.array(images)
-
-    aug = ImageDataGenerator(
-        # set input mean to 0 over the dataset
-        featurewise_center=False,
-        # set each sample mean to 0
-        samplewise_center=False,
-        # divide inputs by std of dataset
-        featurewise_std_normalization=False,
-        # divide each input by its std
-        samplewise_std_normalization=False,
-        # apply ZCA whitening
-        zca_whitening=False,
-        # epsilon for ZCA whitening
-        zca_epsilon=1e-06,
-        # randomly rotate images in the range (deg 0 to 180)
-        rotation_range=10,  #g was 180 for circle-like images like skin things
-        # randomly shift images horizontally
-        width_shift_range=0.2,
-        # randomly shift images vertically
-        height_shift_range=0.2,
-        # set range for random shear
-        shear_range=0.3,
-        # set range for random zoom
-        zoom_range=0.2,
-        # set range for random channel shifts
-        channel_shift_range=20,
-        # set mode for filling points outside the input boundaries
-        fill_mode='nearest',
-        # value used for fill_mode = "constant"
-        cval=0.,
-        # randomly flip images
-        horizontal_flip=False,
-        # randomly flip images
-        vertical_flip=False,
-        # set rescaling factor (applied before any other transformation)
-        rescale=None,
-        # set function that will be applied on each input
-        preprocessing_function=None,
-        # image data format, either "channels_first" or "channels_last"
-        data_format=None,
-        # fraction of images reserved for validation (strictly between 0 and 1)
-        validation_split=0.0)
-
-    trainGen = image_generator(X_train, batch_size, mode="train", aug=aug)
-    testGen = image_generator(X_test, batch_size, mode="train", aug=None)
-    print(f"X_test.shape: {X_test.shape}")
-    """
-
     # ILOREM
-    ae_name = "aae"
-
-    path = "./"
     path_models = path + "data/models/"
     path_aemodels = path + "data/aemodels/%s/%s/" % (dataset, ae_name)
     black_box_filename = path_models + "%s_%s" % (dataset, black_box)
@@ -322,92 +249,9 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # this is temporary like the return following
-    notify_task(current_user, good=True, task=f"explanation of {index_tr}")
+    notify_task("Fabio", good=True, task=f"explanation of {index_tr}")
 
     return tosave
-
-    # xxx continue checking from here
-    task = "get_counterfactual_prototypes"
-    print(f"Doing [green]{task}[/]")
-    cont = 0
-    try:
-        cprototypes = exp.get_counterfactual_prototypes(eps=0.01)
-        for cpimg in cprototypes:
-            bboc = bb_predict(np.array([cpimg]))[0]
-            plt.imshow(cpimg)
-            plt.title("cf - black box %s" % bboc)
-            plt.savefig(
-                "./data/aemodels/mnist/aae/explanation/cprototypes_%s_%s.png"
-                % (index_tr, cont),
-                dpi=150,
-            )
-            # plt.show()
-            cont = cont + 1
-    except:
-        notify_task(current_user, good=False, task=task)
-        exit(1)
-    print(f"I made #{cont} {task}.")
-
-    task = "get_prototypes_respecting_rule"
-    print(f"Doing [green]{task}[/]")
-    cont = 0
-    try:
-        prototypes = exp.get_prototypes_respecting_rule(num_prototypes=3)
-        for pimg in prototypes:
-            bbo = bb_predict(np.array([pimg]))[0]
-            if use_rgb:
-                plt.imshow(pimg)
-            else:
-                plt.imshow(pimg.astype("uint8"), cmap="gray")
-            plt.title("prototype %s" % bbo)
-            plt.savefig(
-                "./data/aemodels/mnist/aae/explanation/prototypes_%s_%s.png"
-                % (index_tr, cont),
-                dpi=150,
-            )
-            # plt.show()
-            cont = cont + 1
-    except:
-        notify_task(current_user, good=False, task=task)
-        exit(1)
-    print(f"I made #{cont} {task}.")
-
-    # g wat is this
-    task = "get_image_rule"
-    print(f"Doing [green]{task}[/]")
-    try:
-        img2show, mask = exp.get_image_rule(features=None, samples=10)
-        plt.imshow(img2show, cmap="gray")
-        bbo = bb_predict(np.array([img2show]))[0]
-        plt.title("image to explain - black box %s" % bbo)
-        plt.savefig("./data/aemodels/mnist/aae/explanation/get_image_rule.png", dpi=150)
-    except:
-        notify_task(current_user, good=False, task=task)
-        exit(1)
-
-    notify_task(current_user, good=True, task="explanation")
-
-
-# TODO: save dataset to file
-
-# # Load Dataset
-
-# TODO: load dataset from csv
-
-# user setup
-if current_user == "Carlo":
-    # !pip install deap
-
-    from google.colab import drive
-
-    drive.mount("/content/gdrive")
-    if "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/" not in sys.path:
-        sys.path.append(
-            "/content/gdrive/My Drive/Colab Notebooks/ABELE_prostate/fabio/"
-        )
-if current_user == "Fabio":
-    import tg_api_key
-logging.info(f"✅ Setup for {current_user} done.")
 
 
 if __name__ == "__main__":
@@ -421,12 +265,12 @@ if __name__ == "__main__":
     if run_options == "delete-all":
         # Only run if you want this to start over, or you are running this for the first time to create the data folders.
         # g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
-        empty_folder("./data/aemodels/mnist/aae/explanation")
-        empty_folder("./data/aemodels/mnist/aae")
-        empty_folder("./data/models")
-        empty_folder("./data/results/bb")
-        empty_folder("./data/oab")
-        empty_folder("./data")
+        # empty_folder("./data/aemodels/mnist/aae/explanation")
+        # empty_folder("./data/aemodels/mnist/aae")
+        # empty_folder("./data/models")
+        # empty_folder("./data/results/bb")
+        # empty_folder("./data/oab")
+        # empty_folder("./data")
         exit(0)
 
     # # Data understanding
@@ -471,7 +315,7 @@ if __name__ == "__main__":
         ae.save_model()
         ae.sample_images(epochs)
 
-        notify_task(current_user, good=True, task=run_options)
+        notify_task("Fabio", good=True, task=run_options)
 
         # Testing autoencoder with rmse (xxx check with Carlo)
         # g the following sets up the autoencoder but does not fit it
