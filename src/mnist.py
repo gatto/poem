@@ -369,7 +369,6 @@ if __name__ == "__main__":
         print(f"X_train.shape: {X_train.shape}")
         print(f"X_test.shape: {X_test.shape}")
 
-        path = "./"
         path_models = path + "data/models/"
         path_results = path + "data/results/bb/"
 
