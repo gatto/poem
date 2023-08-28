@@ -156,14 +156,19 @@ class Blackbox:
     """
 
     dataset: str = field(repr=False, validator=validators.instance_of(str))
+    model_string: str = field(default="RF", validator=validators.instance_of(str))
     model: dict = field(init=False, repr=lambda value: f"{value.keys()}")
 
     @model.default
     def _model_default(self) -> dict:
         match self.dataset:
             case "mnist":
-                black_box = "RF"
-                use_rgb = False  # g with mnist dataset
+                match self.model_string:
+                    case "RF":
+                        black_box = "RF"
+                        use_rgb = False  # g with mnist dataset
+                    case "DNN":
+                        pass
                 black_box_filename = f"./data/models/mnist_{black_box}"
 
                 results = dict()
@@ -172,6 +177,7 @@ class Blackbox:
                 )
                 return results
                 # the original usage is: Y_pred = bb_predict(X_test)
+
             case "fashion":
                 black_box = "RF"
                 use_rgb = True
@@ -240,12 +246,14 @@ class Domain:
     EXCEPT FOR A "CUSTOM" DATASET, WHICH WILL NOT BE IMPLEMENTED,
 
     Automatically knows everything it needs to know just by constructing it like:
-    Domain(dataset="mnist | xxx")
+    Domain(dataset_name="mnist | xxx", bb_type="RF | xxx")
+    Each dataset has possible bb_types
 
-    It has metadata set, clases set, fetches ae and blackbox from files
+    Domain has metadata set, clases set, fetches ae and blackbox from files
     """
 
-    dataset: str = field()
+    dataset_name: str = field()
+    bb_type: str = field()
     metadata: dict = field()
     classes: list[str] = field(
         validator=validators.deep_iterable(
@@ -257,45 +265,71 @@ class Domain:
     blackbox: Blackbox = field()
     explanation_base: list = field(init=False, default=None)
 
-    @dataset.validator
+    @dataset_name.validator
     def _dataset_validator(self, attribute, value):
         possible_datasets = {"mnist", "fashion", "custom"}
         if value not in possible_datasets:
             raise ValueError(f"Dataset {value} not implemented.")
 
-    @metadata.default
-    def _metadata_default(self):
-        results = dict()
-        match self.dataset:
+    @bb_type.validator
+    def _bb_string_validator(self, attribute, value):
+        match self.dataset_name:
             case "mnist":
-                results["ae_name"] = "aae"
-                results["dataset"] = "mnist"
-                results[
-                    "path_aemodels"
-                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                results["shape"] = (28, 28, 3)
+                possible_bb = {"RF", "DNN"}
             case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
+            case _:
+                raise ValueError
+        if value not in possible_bb:
+            raise ValueError(
+                f"Blackbox type bb_type={value} not implemented. Possible are: {possible_bb}"
+            )
+
+    @metadata.default
+    def _metadata_default(self):
+        results = dict()
+        match self.dataset_name:
+            case "mnist":
+                match self.bb_type:
+                    case "RF":
+                        results["ae_name"] = "aae"
+                        results["dataset"] = "mnist"
+                        results[
+                            "path_aemodels"
+                        ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                        results["shape"] = (28, 28, 3)
+                    case "DNN":
+                        pass
+                    case _:
+                        raise ValueError
+            case "fashion":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+            case _:
+                raise ValueError
         return results
 
     @classes.default
     def _classes_default(self):
-        match self.dataset:
+        match self.dataset_name:
             case "mnist":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
+            case _:
+                raise ValueError
 
     @ae.default
     def _ae_default(self):
         """
         this works already too
         """
-        match self.dataset:
+        match self.dataset_name:
             case "mnist":
                 pass
             case "fashion":
@@ -309,13 +343,15 @@ class Domain:
         """
         this works already
         """
-        match self.dataset:
+        match self.dataset_name:
             case "mnist":
                 pass
             case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
+            case _:
+                raise ValueError
         return Blackbox(dataset=self.dataset)
 
     def load(self):
@@ -634,12 +670,13 @@ class TestPoint:
 
     def perturb(
         self, complexrule: ComplexRule, eps=0.04, old_method=False
-    ) -> ImageExplanation:
+    ) -> ImageExplanation | None:
         """
         **Used for factual image generation**
 
         returns one ImageExplanation object with the entire ComplexRule respected,
         but still varying the features by **at least** some margin eps
+        It can return None if we tried 40 times to pass the discriminator and we failed every time
         """
 
         debug_results = ""
@@ -825,16 +862,27 @@ class Explainer:
         return results
 
     @factuals.default
-    def _factuals_default(self):
+    def _factuals_default(self, closest=False):
+        """
+        This generates 10 times the number of factuals requested with self.howmany,
+        then returns the .howmany **farthest** from the testpoint.
+
+        For debug purposes or if you have specific needs you can set closest=True
+        to return the .howmany **closest** from testpoint.
+        """
         logging.info(f"Doing factuals with target point id={self.target.id}")
         results = []
 
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
-            results.append(point)
+            if point:
+                results.append(point)
 
         # take the last how_many points, last because I'd like the farthest points
-        ranking = ranking_knn(self.target, results)[-self.howmany :]
+        if not closest:
+            ranking = ranking_knn(self.target, results)[-self.howmany :]
+        elif closest:
+            ranking = ranking_knn(self.target, results)[: self.howmany]
 
         # take the index in the tuple(distance, index)
         indexes_to_take = [x[1] for x in ranking]
