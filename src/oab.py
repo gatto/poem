@@ -599,10 +599,9 @@ class TestPoint:
             )
 
             # THIS IS THE IMAGEEXPLANATION GENERATION
-            new_point = ImageExplanation(
-                latent=Latent(a=copy.deepcopy(self.latent.a)),
-            )
-            new_point.latent.a[rule.feature] = value_to_overwrite
+            my_a = copy.deepcopy(self.latent.a)
+            my_a[rule.feature] = value_to_overwrite
+            new_point = ImageExplanation(latent=Latent(my_a))
 
             # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
