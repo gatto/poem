@@ -542,7 +542,7 @@ class TreePoint:
             self.latentdt.s_rules,
             self.latentdt.s_counterrules,
             self.blackboxpd.predicted_class,
-            self.domain.dataset,
+            self.domain.dataset_name,
         )
         cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
         con.commit()
@@ -1163,7 +1163,7 @@ sqlite3.register_adapter(np.ndarray, _adapt_array)
 sqlite3.register_converter("array", _convert_array)
 sqlite3.register_adapter(dict, lambda d: json.dumps(d).encode("utf8"))
 sqlite3.register_converter("dictionary", lambda d: json.loads(d.decode("utf8")))
-my_domain = Domain(dataset="mnist")
+my_domain = Domain("mnist", "RF")
 
 
 if __name__ == "__main__":
