@@ -90,7 +90,7 @@ class Condition:
 
 
 def _converter_complexrule(conditions):
-    if type(conditions) == list:
+    if isinstance(conditions, list):
         my_results = {}
         for condition in conditions:
             try:
@@ -172,8 +172,17 @@ class Blackbox:
                 )
                 return results
                 # the original usage is: Y_pred = bb_predict(X_test)
-            case "fashion_mnist":
-                raise NotImplementedError
+            case "fashion":
+                black_box = "RF"
+                use_rgb = True
+                black_box_filename = f"./data/models/fashion_{black_box}"
+
+                results = dict()
+                results["predict"], results["predict_proba"] = get_black_box(
+                    black_box, black_box_filename, use_rgb
+                )
+                return results
+                # the original usage is: Y_pred = bb_predict(X_test)
             case "custom":
                 raise NotImplementedError
 
@@ -250,7 +259,7 @@ class Domain:
 
     @dataset.validator
     def _dataset_validator(self, attribute, value):
-        possible_datasets = {"mnist", "fashion_mnist", "custom"}
+        possible_datasets = {"mnist", "fashion", "custom"}
         if value not in possible_datasets:
             raise ValueError(f"Dataset {value} not implemented.")
 
@@ -265,7 +274,7 @@ class Domain:
                     "path_aemodels"
                 ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
                 results["shape"] = (28, 28, 3)
-            case "fashion_mnist":
+            case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
@@ -276,7 +285,7 @@ class Domain:
         match self.dataset:
             case "mnist":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-            case "fashion_mnist":
+            case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
@@ -289,7 +298,7 @@ class Domain:
         match self.dataset:
             case "mnist":
                 pass
-            case "fashion_mnist":
+            case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
@@ -303,7 +312,7 @@ class Domain:
         match self.dataset:
             case "mnist":
                 pass
-            case "fashion_mnist":
+            case "fashion":
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
@@ -872,7 +881,7 @@ class Explainer:
         if dataset == "custom":
             raise NotImplementedError
 
-        if dataset not in ("mnist", "fashion_mnist", "custom"):
+        if dataset not in ("mnist", "fashion", "custom"):
             raise ValueError(f"Dataset {dataset} not implemented.")
 
         return cls(
