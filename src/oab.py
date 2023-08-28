@@ -336,7 +336,7 @@ class Domain:
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
-        return AE(dataset=self.dataset, metadata=self.metadata)
+        return AE(dataset=self.dataset_name, metadata=self.metadata)
 
     @blackbox.default
     def _blackbox_default(self):
@@ -352,7 +352,7 @@ class Domain:
                 raise NotImplementedError
             case _:
                 raise ValueError
-        return Blackbox(dataset=self.dataset)
+        return Blackbox(dataset=self.dataset_name)
 
     def load(self):
         logging.info("start loading the explanation base")
