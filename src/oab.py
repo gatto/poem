@@ -155,13 +155,13 @@ class Blackbox:
     Blackbox.predict(point) returns a class prediction of type str
     """
 
-    dataset: str = field(repr=False, validator=validators.instance_of(str))
+    dataset_name: str = field(repr=False, validator=validators.instance_of(str))
     model_string: str = field(default="RF", validator=validators.instance_of(str))
     model: dict = field(init=False, repr=lambda value: f"{value.keys()}")
 
     @model.default
     def _model_default(self) -> dict:
-        match self.dataset:
+        match self.dataset_name:
             case "mnist":
                 match self.model_string:
                     case "RF":
@@ -210,7 +210,7 @@ class AE:
     .discriminate(Point)
     """
 
-    dataset: str = field(repr=False, validator=validators.instance_of(str))
+    dataset_name: str = field(repr=False, validator=validators.instance_of(str))
     metadata: dict = field(repr=False)
     model = field(init=False, repr=lambda value: f"{type(value)}")
 
@@ -295,15 +295,15 @@ class Domain:
                 match self.bb_type:
                     case "RF":
                         results["ae_name"] = "aae"
-                        results["dataset"] = "mnist"
-                        results[
-                            "path_aemodels"
-                        ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                        results["shape"] = (28, 28, 3)
                     case "DNN":
                         pass
                     case _:
                         raise ValueError
+                results["dataset"] = "mnist"
+                results["shape"] = (28, 28, 3)
+                results[
+                    "path_aemodels"
+                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
             case "fashion":
                 raise NotImplementedError
             case "custom":
@@ -336,7 +336,9 @@ class Domain:
                 raise NotImplementedError
             case "custom":
                 raise NotImplementedError
-        return AE(dataset=self.dataset_name, metadata=self.metadata)
+            case _:
+                raise ValueError
+        return AE(dataset_name=self.dataset_name, metadata=self.metadata)
 
     @blackbox.default
     def _blackbox_default(self):
@@ -352,12 +354,16 @@ class Domain:
                 raise NotImplementedError
             case _:
                 raise ValueError
-        return Blackbox(dataset=self.dataset_name)
+        return Blackbox(dataset_name=self.dataset_name)
 
     def load(self):
-        logging.info("start loading the explanation base")
-        print("start loading the explanation base")
-        self.explanation_base = load_all()
+        logging.info(
+            f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
+        )
+        print(
+            f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
+        )
+        self.explanation_base = load_all(self.dataset_name, self.bb_type)
         logging.info(f"loaded {len(self.explanation_base)} in explanation base")
         print(f"loaded {len(self.explanation_base)} in explanation base")
 
@@ -511,42 +517,43 @@ class TreePoint:
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
-        if value.predicted_class not in my_domain.classes:
+        if value.predicted_class not in self.domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
 
     @blackboxpd.validator
     def _blackboxpd_validator(self, attribute, value):
-        if value.predicted_class not in my_domain.classes:
+        if value.predicted_class not in self.domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
     def save(self):
-        con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-        cur = con.cursor()
+        with Connection(self.domain.dataset_name, self.domain.bb_type) as con:
+            cur = con.cursor()
 
-        data = (
-            self.id,
-            self.a,
-            self.latent.a,
-            self.latent.margins,
-            self.latentdt.predicted_class,
-            self.latentdt.model_json,
-            self.latentdt.fidelity,
-            self.latentdt.s_rules,
-            self.latentdt.s_counterrules,
-            self.blackboxpd.predicted_class,
-            self.domain.dataset_name,
-        )
-        cur.execute(f"INSERT INTO data VALUES {_data_table_structure_query()}", data)
-        con.commit()
-        con.close()
+            data = (
+                self.id,
+                self.a,
+                self.latent.a,
+                self.latent.margins,
+                self.latentdt.predicted_class,
+                self.latentdt.model_json,
+                self.latentdt.fidelity,
+                self.latentdt.s_rules,
+                self.latentdt.s_counterrules,
+                self.blackboxpd.predicted_class,
+                self.domain.dataset_name,
+            )
+            cur.execute(
+                f"INSERT INTO data VALUES {_data_table_structure_query()}", data
+            )
+            con.commit()
 
     def keys(self):
         return [x for x in dir(self) if x[:1] != "_"]
@@ -594,7 +601,7 @@ class TestPoint:
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
 
     @latent.default
     def _latent_default(self):
@@ -602,7 +609,7 @@ class TestPoint:
         encodes the TestPoint.a to build TestPoint.Latent.a.
         Has no margins bc as a test point we did not and will not generate a neighborhood
         """
-        return Latent(a=my_domain.ae.encode(self))
+        return Latent(a=self.domain.ae.encode(self))
 
     def marginal_apply(
         self, rule: Condition, eps=0.04, more=False
@@ -651,14 +658,12 @@ class TestPoint:
             # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) >= 0.35:
+            if discr_value := self.domain.ae.discriminate(new_point) >= 0.35:
                 if debug_results:
                     logging.warning(debug_results)
                 return new_point
             else:
-                debug_results = (
-                    f"{debug_results} {my_domain.ae.discriminate(new_point)}"
-                )
+                debug_results = f"{debug_results} {discr_value}"
         # we arrive here if we didn't get a valid point after 40 tries
         if debug_results:
             logging.error(
@@ -731,14 +736,12 @@ class TestPoint:
             # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
             # No? start again with entire point generation
-            if my_domain.ae.discriminate(new_point) > 0.35:
+            if discr_value := self.domain.ae.discriminate(new_point) > 0.35:
                 if debug_results:
                     logging.warning(debug_results)
                 return new_point
             else:
-                debug_results = (
-                    f"{debug_results} {my_domain.ae.discriminate(new_point)}"
-                )
+                debug_results = f"{debug_results} {discr_value}"
         # we arrive here if we didn't get a valid point after 40 tries
         logging.error(
             f"we would have runtimerrror here in .perturb() with {debug_results}"
@@ -848,7 +851,8 @@ class Explainer:
             point: ImageExplanation = self.testpoint.perturb(
                 self.target.latentdt.rule, old_method=True
             )
-            results.append(point)
+            if point:
+                results.append(point)
 
         if self.save:
             for i, point in enumerate(results):
@@ -901,13 +905,11 @@ class Explainer:
 
     def more_factuals(self) -> list[ImageExplanation]:
         more = self._factuals_default()
-
         self.factuals = self.factuals.extend(more)
         return more
 
     def more_counterfactuals(self) -> list[ImageExplanation]:
         more = self._counterfactuals_default(more=True)
-
         self.counterfactuals = self.counterfactuals.extend(more)
         return more
 
@@ -972,7 +974,7 @@ def knn(point: TestPoint) -> TreePoint:
     while True:
         if not points:
             raise RuntimeError("We've run out of tree points during knn")
-        # this while loop's purpose is to continue looking for 1-nn sample points
+        # this while loop's purpose is to continue looking for 1NN sample points
         # if the first sample point result `points[index]` is discarded because TestPoint
         # is not in the sampled point's margins
         neigh = NearestNeighbors(n_neighbors=1)
@@ -1011,34 +1013,34 @@ def knn(point: TestPoint) -> TreePoint:
     return points[index]
 
 
-def list_all() -> list[int]:
+def list_all(dataset_name, bb_type) -> list[int]:
     """
     Returns a list of TreePoint ids that are in the db.
     """
-    con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-    con.row_factory = sqlite3.Row
-    cur = con.cursor()
+    with Connection(dataset_name, bb_type) as con:
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
 
-    rows = cur.execute("SELECT id FROM data")
-    rows = rows.fetchall()
-    con.close()
+        rows = cur.execute("SELECT id FROM data")
+        rows = rows.fetchall()
     return sorted([x["id"] for x in rows])
 
 
-def load(id: int | set | list | tuple) -> None | TreePoint:
+def load(
+    dataset_name: str, bb_type: str, id: int | set | list | tuple
+) -> None | TreePoint:
     """
     Loads a TrainPoint if you pass an id:int
     Loads a list of TrainPoints ordered by id if you pass a collection
     """
     if isinstance(id, int):
-        con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
+        with Connection(dataset_name, bb_type) as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
 
-        row = cur.execute("SELECT * FROM data WHERE id = ?", (id,))
-        # print([element[0] for element in res.description]) # this gives table column names
-        row = row.fetchall()
-        con.close()
+            row = cur.execute("SELECT * FROM data WHERE id = ?", (id,))
+            # print([element[0] for element in res.description]) # this gives table column names
+            row = row.fetchall()
 
         if len(row) == 0:
             return None
@@ -1079,14 +1081,14 @@ def load(id: int | set | list | tuple) -> None | TreePoint:
         raise TypeError(f"id was of an unrecognized type: {type(id)}")
 
 
-def load_all() -> list[TreePoint]:
+def load_all(dataset_name, bb_type) -> list[TreePoint]:
     """
     Returns a list of all TreePoints that are in the sql db
     """
     results = []
 
-    for i in list_all():
-        results.append(load(i))
+    for i in list_all(dataset_name, bb_type):
+        results.append(load(dataset_name, bb_type, i))
     return results
 
 
@@ -1107,22 +1109,75 @@ class Connection:
     # res.fetchone() is None
     # return cur
     # TODO: implement this and substitute this everywhere
-    method: str
-    connect: str = field()
+    dataset_name: str = field()
+    bb_type: str = field()
+    method: str = field(default="sqlite")
+    connection = field(init=False, repr=lambda value: f"{type(value)}", default=None)
 
-    @connect.default
-    def _connect_default(self):
-        pass
+    @dataset_name.validator
+    def _dataset_name_validator(self, attribute, value):
+        possible_datasets = {"mnist", "fashion", "custom"}
+        if value not in possible_datasets:
+            raise NotImplementedError(f"Dataset {value} not implemented.")
+
+    @bb_type.validator
+    def _bb_type_validator(self, attribute, value):
+        match self.dataset_name:
+            case "mnist":
+                possible_bb = {"RF", "DNN"}
+            case "fashion":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+            case _:
+                raise ValueError
+        if value not in possible_bb:
+            raise NotImplementedError(
+                f"Blackbox type bb_type={value} not implemented. Possible are: {possible_bb}"
+            )
+
+    @method.validator
+    def _method_validator(self, attribute, value):
+        implemented_protocols = {"sqlite"}
+        if value not in implemented_protocols:
+            raise ValueError(
+                f"The implemented sql protocols right now are {implemented_protocols}"
+            )
 
     def __enter__(self):
-        self.file = open(self.file_name, "w")
-        return self.file
+        data_path = Path("./data/oab")
+        match self.dataset_name:
+            case "mnist":
+                match self.bb_type:
+                    case "RF":
+                        data_table_path = data_path / "mnist.db"
+                    case "DNN":
+                        raise NotImplementedError
+                    case _:
+                        raise NotImplementedError
+            case "fashion":
+                match self.bb_type:
+                    case "RF":
+                        raise NotImplementedError
+                    case "DNN":
+                        raise NotImplementedError
+                    case _:
+                        raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+            case _:
+                raise ValueError
+
+        self.connection = sqlite3.connect(
+            data_table_path, detect_types=sqlite3.PARSE_DECLTYPES
+        )
+        return self.connection
 
     def __exit__(self, *args):
-        self.file.close()
+        self.connection.close()
 
 
-def _delete_create_table() -> None:
+def _delete_create_table(dataset_name, bb_type) -> None:
     data_table_path.unlink(missing_ok=True)
 
     data_table_string = "("
@@ -1130,12 +1185,11 @@ def _delete_create_table() -> None:
         data_table_string = f"{data_table_string}{column}, "
     data_table_string = f"{data_table_string[:-2]})"
 
-    con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-    cur = con.cursor()
+    with Connection(dataset_name, bb_type) as con:
+        cur = con.cursor()
 
-    cur.execute(f"CREATE TABLE data{data_table_string}")
-    # must be smth like "CREATE TABLE data(id, original array)"
-    con.close()
+        # must be smth like "CREATE TABLE data(id, original array)"
+        cur.execute(f"CREATE TABLE data{data_table_string}")
 
 
 def _adapt_array(arr):
@@ -1151,20 +1205,12 @@ def _convert_array(text):
     return np.load(out)
 
 
-"""
-con = sqlite3.connect(":memory:", detect_types=sqlite3.PARSE_DECLTYPES)
-cur = con.cursor()
-cur.execute("create table test (arr array)")
-"""
-
 ## CODE EXECUTED AFTER LIBRARY DEFINITION
 console = Console()
 sqlite3.register_adapter(np.ndarray, _adapt_array)
 sqlite3.register_converter("array", _convert_array)
 sqlite3.register_adapter(dict, lambda d: json.dumps(d).encode("utf8"))
 sqlite3.register_converter("dictionary", lambda d: json.loads(d.decode("utf8")))
-my_domain = Domain("mnist", "RF")
-
 
 if __name__ == "__main__":
     """
@@ -1175,35 +1221,36 @@ if __name__ == "__main__":
     """
     try:
         dataset = sys.argv[1]
-        run_option = sys.argv[2]
+        bb_type = sys.argv[2]
+        run_option = sys.argv[3]
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
             (dataset) mnist
+            (blackbox type) rf | dnn
             and then:
             (testing) delete-all, run-tests, test-train <how many to load>,
             (production) train, list
             
             examples:
-            python oab.py mnist delete-all
-            python oab.py mnist test-train 8000
+            python oab.py mnist rf delete-all
+            python oab.py mnist rf test-train 8000
 
             to use this to explain a record, must use it in a python script (refer to documentation)"""
         )
 
     match dataset:
         case "mnist":
-            # TODO: am I creating a Domain for each TreePoint? Is that horrible?
-            # should I find a way to just use this my_domain everywhere?
-            # my_domain = Domain(dataset="mnist")
             pass
+        case "fashion":
+            raise NotImplementedError
         case _:
             raise NotImplementedError
 
     if run_option == "delete-all":
         # delete create table
-        _delete_create_table()
-        print(f"done {my_domain} {run_option}")
+        _delete_create_table(dataset, bb_type)
+        print(f"done {dataset} {bb_type} {run_option}")
     elif run_option == "run-tests":
         raise NotImplementedError
         miao = load(0)
@@ -1264,7 +1311,7 @@ if __name__ == "__main__":
             # TODO: check if this is the same conceptually of what I extract myself
             miao.save()
     elif run_option == "list":
-        all_records = list_all()
+        all_records = list_all(dataset, bb_type)
         if all_records:
             print(all_records)
             print(f"We have {len(all_records)} TreePoints in the database.")
