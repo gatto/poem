@@ -43,7 +43,7 @@ from tensorflow.keras.datasets import mnist
 ae_name = "aae"
 random_state = None
 dataset = "mnist"
-black_box = "RF"
+black_box = "DNN"
 use_rgb = False  # g with mnist dataset
 
 path = "./"
@@ -85,8 +85,6 @@ def notify_task(current_user: str, good: bool, task: str) -> None:
         chat_id = "29375109"
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
         requests.get(url).json()  # this sends the message
-    if current_user == "Carlo":
-        pass
 
 
 # # Build Dataset
@@ -94,62 +92,55 @@ def get_data(dataset: str = "mnist") -> tuple:
     # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
     print("Loading dataset")
 
-    match dataset:
-        case "mnist":
-            # for grayscale:
-            (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
-            X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
-            X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
+    # 2 different alternatives:
+    """
+    # carlo:
+    (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
+    X_train = np.expand_dims(X_train, 3)
+    X_test = np.expand_dims(X_test, 3)
+    """
+    # for grayscale:
+    (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
+    X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
+    X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 
-            # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-            random.seed("gattonemiao")
-            indexes = random.sample(
-                range(X_train.shape[0]), X_train.shape[0] // 6
-            )  # g get a list of 1/6 indexes of the len of X_train
+    # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+    random.seed("gattonemiao")
+    indexes = random.sample(
+        range(X_train.shape[0]), X_train.shape[0] // 6
+    )  # g get a list of 1/6 indexes of the len of X_train
 
-            indexing_condition = []
-            for x in track(
-                range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
-            ):
-                if x in indexes:
-                    indexing_condition.append(True)
-                else:
-                    indexing_condition.append(False)
-            assert len(indexing_condition) == X_train.shape[0]
+    indexing_condition = []
+    for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
+        if x in indexes:
+            indexing_condition.append(True)
+        else:
+            indexing_condition.append(False)
+    assert len(indexing_condition) == X_train.shape[0]
 
-            logging.info(
-                f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
-            )
+    logging.info(
+        f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
+    )
 
-            indexing_condition = np.array(indexing_condition)
+    indexing_condition = np.array(indexing_condition)
 
-            X_tree = X_train[indexing_condition]
-            Y_tree = Y_train[indexing_condition]
+    X_tree = X_train[indexing_condition]
+    Y_tree = Y_train[indexing_condition]
 
-            X_train = X_train[~indexing_condition]
-            Y_train = Y_train[~indexing_condition]
-        case "fashion-mnist":
-            pass
-        case _:
-            raise NotImplementedError
+    X_train = X_train[~indexing_condition]
+    Y_train = Y_train[~indexing_condition]
 
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
 
-def get_dataset_metadata(dataset: str = "mnist") -> dict:
+def get_dataset_metadata() -> dict:
     results = dict()
-    match dataset:
-        case "mnist":
-            results["ae_name"] = "aae"
-            results["dataset"] = "mnist"
+    results["ae_name"] = "aae"
+    results["dataset"] = "mnist"
 
-            results[
-                "path_aemodels"
-            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-        case "fashion-mnist":
-            pass
-        case _:
-            raise NotImplementedError
+    results[
+        "path_aemodels"
+    ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
 
     return results
 
@@ -166,6 +157,9 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     print(f"Classes are: {class_values}")
 
     # ILOREM
+    ae_name = "aae"
+
+    path = "./"
     path_models = path + "data/models/"
     path_aemodels = path + "data/aemodels/%s/%s/" % (dataset, ae_name)
     black_box_filename = path_models + "%s_%s" % (dataset, black_box)
@@ -243,7 +237,6 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         "limg": exp.limg,
         "dt": exp.dt,
         "neigh_bounding_box": np.array([np.min(exp.Z, axis=0), np.max(exp.Z, axis=0)]),
-        "centroid": np.mean(exp.Z, axis=0),
     }
 
     with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
@@ -266,12 +259,7 @@ if __name__ == "__main__":
     if run_options == "delete-all":
         # Only run if you want this to start over, or you are running this for the first time to create the data folders.
         # g CARE! THIS DELETES ALL FILES IN THE INPUT DIRECTORIES. Run if you want to start over completely
-        # empty_folder("./data/aemodels/mnist/aae/explanation")
-        # empty_folder("./data/aemodels/mnist/aae")
-        # empty_folder("./data/models")
-        # empty_folder("./data/results/bb")
-        # empty_folder("./data/oab")
-        # empty_folder("./data")
+
         exit(0)
 
     # # Data understanding
@@ -370,6 +358,7 @@ if __name__ == "__main__":
         print(f"X_train.shape: {X_train.shape}")
         print(f"X_test.shape: {X_test.shape}")
 
+        path = "./"
         path_models = path + "data/models/"
         path_results = path + "data/results/bb/"
 
