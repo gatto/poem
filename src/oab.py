@@ -517,18 +517,18 @@ class TreePoint:
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
-        if value.predicted_class not in self.domain.classes:
+        if value.predicted_class not in my_domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
 
     @blackboxpd.validator
     def _blackboxpd_validator(self, attribute, value):
-        if value.predicted_class not in self.domain.classes:
+        if value.predicted_class not in my_domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
