@@ -732,7 +732,7 @@ class TestPoint:
                 my_generated_record.append(generated_value)
 
             new_point = ImageExplanation(
-                latent=Latent(a=np.asarray(my_generated_record), domain=self.domain)
+                latent=Latent(a=np.asarray(my_generated_record)), domain=self.domain
             )
             # static set discriminator probability at 0.35
             # passes discriminator? Return it immediately.
