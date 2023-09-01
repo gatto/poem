@@ -363,7 +363,7 @@ class Domain:
         print(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
-        self.explanation_base = load_all(self.dataset_name, self.bb_type)
+        self.explanation_base = load_all(self)
         logging.info(f"loaded {len(self.explanation_base)} in explanation base")
         print(f"loaded {len(self.explanation_base)} in explanation base")
 
@@ -517,18 +517,18 @@ class TreePoint:
 
     @latentdt.validator
     def _latentdt_validator(self, attribute, value):
-        if value.predicted_class not in my_domain.classes:
+        if value.predicted_class not in self.domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
 
     @blackboxpd.validator
     def _blackboxpd_validator(self, attribute, value):
-        if value.predicted_class not in my_domain.classes:
+        if value.predicted_class not in self.domain.classes:
             raise ValueError(
                 f"The {value.predicted_class} predicted_class of {attribute} is not in the domain. Its type is {type(value.predicted_class)}"
             )
@@ -749,7 +749,7 @@ class TestPoint:
         pass
 
     @classmethod
-    def generate_test(cls):
+    def generate_test(cls, my_domain):
         """
         can use TestPoint.generate_test() to get a TestPoint usable for testing
         (it's the point with id=0 in the sql db)
@@ -918,7 +918,7 @@ class Explainer:
 
     @classmethod
     def from_array(
-        cls, a: np.ndarray, dataset: str, howmany: int = 3, save: bool = False
+        cls, a: np.ndarray, domain: Domain, howmany: int = 3, save: bool = False
     ):
         """
         This is the main method that should be exposed externally.
@@ -928,20 +928,16 @@ class Explainer:
         explanation = Explainer.from_array(a:np.ndarray)
         """
 
-        if dataset == "custom":
-            raise NotImplementedError
-
-        if dataset not in ("mnist", "fashion", "custom"):
-            raise ValueError(f"Dataset {dataset} not implemented.")
-
         return cls(
-            testpoint=TestPoint(a=a, domain=my_domain),
+            testpoint=TestPoint(a=a, domain=domain),
             howmany=howmany,
             save=save,
         )
 
     @classmethod
-    def from_file(cls, my_path: Path):
+    def from_file(
+        cls, my_path: Path, domain: Domain, howmany: int = 3, save: bool = False
+    ):
         """
         This is the main method that should be exposed externally.
         intended usage:
@@ -1026,15 +1022,13 @@ def list_all(dataset_name, bb_type) -> list[int]:
     return sorted([x["id"] for x in rows])
 
 
-def load(
-    dataset_name: str, bb_type: str, id: int | set | list | tuple
-) -> None | TreePoint:
+def load(domain: Domain, id: int | set | list | tuple) -> None | TreePoint:
     """
     Loads a TrainPoint if you pass an id:int
     Loads a list of TrainPoints ordered by id if you pass a collection
     """
     if isinstance(id, int):
-        with Connection(dataset_name, bb_type) as con:
+        with Connection(domain.dataset_name, domain.bb_type) as con:
             con.row_factory = sqlite3.Row
             cur = con.cursor()
 
@@ -1068,27 +1062,27 @@ def load(
                     s_rules=row["srule"],
                     s_counterrules=row["scounterrules"],
                 ),
-                domain=my_domain,
+                domain=domain,
             )  # blackboxpd=BlackboxPD(predicted_class=row["BBpredicted"]),
 
     elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
         to_load = sorted([x for x in id])
         results = []
         for i in to_load:
-            results.append(load(i))
+            results.append(load(domain, i))
         return results
     else:
         raise TypeError(f"id was of an unrecognized type: {type(id)}")
 
 
-def load_all(dataset_name, bb_type) -> list[TreePoint]:
+def load_all(domain: Domain) -> list[TreePoint]:
     """
     Returns a list of all TreePoints that are in the sql db
     """
     results = []
 
-    for i in list_all(dataset_name, bb_type):
-        results.append(load(dataset_name, bb_type, i))
+    for i in list_all(domain.dataset_name, domain.bb_type):
+        results.append(load(domain, i))
     return results
 
 
@@ -1221,7 +1215,7 @@ if __name__ == "__main__":
     """
     try:
         dataset = sys.argv[1]
-        bb_type = sys.argv[2]
+        bb_type = sys.argv[2].upper()
         run_option = sys.argv[3]
     except IndexError:
         raise Exception(
@@ -1272,44 +1266,65 @@ if __name__ == "__main__":
         print(load(12155))
     elif run_option in ("train", "test-train"):
         # test-train should be used until real train run
-        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+        my_domain = Domain(dataset, bb_type)
+        match dataset:
+            case "mnist":
+                match bb_type:
+                    case "RF":
+                        (
+                            (X_train, Y_train),
+                            (X_test, Y_test),
+                            (X_tree, Y_tree),
+                        ) = get_data()
 
-        if run_option == "test-train":
-            # only for test purposes
-            X_tree = X_tree[: int(sys.argv[3])]
-            Y_tree = Y_tree[: int(sys.argv[3])]
+                        if run_option == "test-train":
+                            # only for test purposes
+                            X_tree = X_tree[: int(sys.argv[4])]
+                            Y_tree = Y_tree[: int(sys.argv[4])]
 
-        for i, point in enumerate(track(X_tree, description="Loading on sql…")):
-            try:
-                with open(
-                    Path(get_dataset_metadata()["path_aemodels"])
-                    / f"explanation/{i}.pickle",
-                    "rb",
-                ) as f:
-                    tosave = pickle.load(f)
-            except FileNotFoundError:
-                tosave = run_explain(i, X_tree, Y_tree)
+                        for i, point in enumerate(
+                            track(X_tree, description="Loading on sql…")
+                        ):
+                            try:
+                                with open(
+                                    Path(get_dataset_metadata()["path_aemodels"])
+                                    / f"explanation/{i}.pickle",
+                                    "rb",
+                                ) as f:
+                                    tosave = pickle.load(f)
+                            except FileNotFoundError:
+                                tosave = run_explain(i, X_tree, Y_tree)
 
-            # the following creates the actual data point
-            miao = TreePoint(
-                id=i,
-                a=point,
-                latent=Latent(
-                    a=tosave["limg"],
-                    margins=tosave["neigh_bounding_box"].transpose(),
-                ),
-                latentdt=LatentDT(
-                    predicted_class=str(tosave["dt_pred"]),
-                    model=tosave["dt"],
-                    fidelity=tosave["fidelity"],
-                    s_rules=str(tosave["rstr"]),
-                    s_counterrules=tosave["cstr"],
-                ),
-                domain=my_domain,
-            )
-            # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
-            # TODO: check if this is the same conceptually of what I extract myself
-            miao.save()
+                            # the following creates the actual data point
+                            miao = TreePoint(
+                                id=i,
+                                a=point,
+                                latent=Latent(
+                                    a=tosave["limg"],
+                                    margins=tosave["neigh_bounding_box"].transpose(),
+                                ),
+                                latentdt=LatentDT(
+                                    predicted_class=str(tosave["dt_pred"]),
+                                    model=tosave["dt"],
+                                    fidelity=tosave["fidelity"],
+                                    s_rules=str(tosave["rstr"]),
+                                    s_counterrules=tosave["cstr"],
+                                ),
+                                domain=my_domain,
+                            )
+                            # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
+                            # TODO: check if this is the same conceptually of what I extract myself
+                            miao.save()
+                    case "DNN":
+                        raise NotImplementedError
+                    case _:
+                        raise ValueError
+            case "fashion":
+                raise NotImplementedError
+            case "custom":
+                raise NotImplementedError
+            case _:
+                raise ValueError
     elif run_option == "list":
         all_records = list_all(dataset, bb_type)
         if all_records:
