@@ -49,7 +49,6 @@ data_table_structure = (
 )
 
 data_path = Path("./data/oab")
-data_table_path = data_path / "mnist.db"
 operators = [">=", "<=", ">", "<"]
 geq = {">=", ">"}
 
@@ -156,24 +155,19 @@ class Blackbox:
     """
 
     dataset_name: str = field(repr=False, validator=validators.instance_of(str))
-    model_string: str = field(default="RF", validator=validators.instance_of(str))
+    bb_type: str = field(validator=validators.instance_of(str))
     model: dict = field(init=False, repr=lambda value: f"{value.keys()}")
 
     @model.default
     def _model_default(self) -> dict:
         match self.dataset_name:
             case "mnist":
-                match self.model_string:
-                    case "RF":
-                        black_box = "RF"
-                        use_rgb = False  # g with mnist dataset
-                    case "DNN":
-                        pass
-                black_box_filename = f"./data/models/mnist_{black_box}"
+                use_rgb = False  # g with mnist dataset
+                black_box_filename = f"./data/models/mnist_{self.bb_type}"
 
                 results = dict()
                 results["predict"], results["predict_proba"] = get_black_box(
-                    black_box, black_box_filename, use_rgb
+                    self.bb_type, black_box_filename, use_rgb
                 )
                 return results
                 # the original usage is: Y_pred = bb_predict(X_test)
@@ -185,7 +179,7 @@ class Blackbox:
 
                 results = dict()
                 results["predict"], results["predict_proba"] = get_black_box(
-                    black_box, black_box_filename, use_rgb
+                    self.bb_type, black_box_filename, use_rgb
                 )
                 return results
                 # the original usage is: Y_pred = bb_predict(X_test)
@@ -292,9 +286,10 @@ class Domain:
         results = dict()
         match self.dataset_name:
             case "mnist":
+                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
-                        results["ae_name"] = "aae"
+                        pass
                     case "DNN":
                         pass
                     case _:
@@ -354,7 +349,7 @@ class Domain:
                 raise NotImplementedError
             case _:
                 raise ValueError
-        return Blackbox(dataset_name=self.dataset_name)
+        return Blackbox(dataset_name=self.dataset_name, bb_type=self.bb_type)
 
     def load(self):
         logging.info(
@@ -509,7 +504,7 @@ class TreePoint:
         validator=validators.instance_of(np.ndarray),
         repr=lambda value: f"{type(value)}",
     )
-    domain: Domain
+    domain: Domain = field(repr=lambda value: f"{type(value)}")
     latent: Latent
     latentdt: LatentDT = field()
     blackboxpd: BlackboxPD = field(init=False)
@@ -1103,10 +1098,10 @@ class Connection:
     # res = cur.execute("SELECT name FROM sqlite_master WHERE name='spam'")
     # res.fetchone() is None
     # return cur
-    # TODO: implement this and substitute this everywhere
     dataset_name: str = field()
     bb_type: str = field()
     method: str = field(default="sqlite")
+    path: Path = field(init=False)
     connection = field(init=False, repr=lambda value: f"{type(value)}", default=None)
 
     @dataset_name.validator
@@ -1139,7 +1134,8 @@ class Connection:
                 f"The implemented sql protocols right now are {implemented_protocols}"
             )
 
-    def __enter__(self):
+    @path.default
+    def _path_default(self) -> Path:
         data_path = Path("./data/oab")
         match self.dataset_name:
             case "mnist":
@@ -1147,7 +1143,7 @@ class Connection:
                     case "RF":
                         data_table_path = data_path / "mnist.db"
                     case "DNN":
-                        raise NotImplementedError
+                        data_table_path = data_path / "mnist-dnn.db"
                     case _:
                         raise NotImplementedError
             case "fashion":
@@ -1162,9 +1158,11 @@ class Connection:
                 raise NotImplementedError
             case _:
                 raise ValueError
+        return data_table_path
 
+    def __enter__(self):
         self.connection = sqlite3.connect(
-            data_table_path, detect_types=sqlite3.PARSE_DECLTYPES
+            self.path, detect_types=sqlite3.PARSE_DECLTYPES
         )
         return self.connection
 
@@ -1173,7 +1171,7 @@ class Connection:
 
 
 def _delete_create_table(dataset_name, bb_type) -> None:
-    data_table_path.unlink(missing_ok=True)
+    Connection(dataset_name, bb_type).path.unlink(missing_ok=True)
 
     data_table_string = "("
     for column in data_table_structure:
