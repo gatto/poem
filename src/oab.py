@@ -570,6 +570,7 @@ class ImageExplanation:
     """
 
     latent: Latent
+    domain: Domain
     a: np.ndarray = field(
         init=False,
         repr=lambda value: f"{type(value)}",
