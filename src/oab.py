@@ -583,11 +583,11 @@ class ImageExplanation:
         I generated a latent.a as either an exemplar or a counterexemplar,
         so now I have to decode it to get the real-space representation of the image
         """
-        return my_domain.ae.decode(self)
+        return self.domain.ae.decode(self)
 
     @blackboxpd.default
     def _blackboxpd_default(self):
-        return BlackboxPD(predicted_class=my_domain.blackbox.predict(self.a))
+        return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
 
 
 @define
