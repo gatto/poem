@@ -13,7 +13,7 @@ import numpy as np
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
-from mnist import (
+from mnistdnn import (
     get_autoencoder,
     get_black_box,
     get_data,
@@ -1268,19 +1268,17 @@ if __name__ == "__main__":
         my_domain = Domain(dataset, bb_type)
         match dataset:
             case "mnist":
+                (
+                    (X_train, Y_train),
+                    (X_test, Y_test),
+                    (X_tree, Y_tree),
+                ) = get_data()
+                if run_option == "test-train":
+                    # only for test purposes
+                    X_tree = X_tree[: int(sys.argv[4])]
+                    Y_tree = Y_tree[: int(sys.argv[4])]
                 match bb_type:
                     case "RF":
-                        (
-                            (X_train, Y_train),
-                            (X_test, Y_test),
-                            (X_tree, Y_tree),
-                        ) = get_data()
-
-                        if run_option == "test-train":
-                            # only for test purposes
-                            X_tree = X_tree[: int(sys.argv[4])]
-                            Y_tree = Y_tree[: int(sys.argv[4])]
-
                         for i, point in enumerate(
                             track(X_tree, description="Loading on sql…")
                         ):
@@ -1293,29 +1291,19 @@ if __name__ == "__main__":
                                     tosave = pickle.load(f)
                             except FileNotFoundError:
                                 tosave = run_explain(i, X_tree, Y_tree)
-
-                            # the following creates the actual data point
-                            miao = TreePoint(
-                                id=i,
-                                a=point,
-                                latent=Latent(
-                                    a=tosave["limg"],
-                                    margins=tosave["neigh_bounding_box"].transpose(),
-                                ),
-                                latentdt=LatentDT(
-                                    predicted_class=str(tosave["dt_pred"]),
-                                    model=tosave["dt"],
-                                    fidelity=tosave["fidelity"],
-                                    s_rules=str(tosave["rstr"]),
-                                    s_counterrules=tosave["cstr"],
-                                ),
-                                domain=my_domain,
-                            )
-                            # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
-                            # TODO: check if this is the same conceptually of what I extract myself
-                            miao.save()
                     case "DNN":
-                        raise NotImplementedError
+                        for i, point in enumerate(
+                            track(X_tree, description="Loading on sql…")
+                        ):
+                            try:
+                                with open(
+                                    Path(get_dataset_metadata()["path_aemodels"])
+                                    / f"explanation/{i}.pickle",
+                                    "rb",
+                                ) as f:
+                                    tosave = pickle.load(f)
+                            except FileNotFoundError:
+                                tosave = run_explain(i, X_tree, Y_tree)
                     case _:
                         raise ValueError
             case "fashion":
@@ -1324,6 +1312,27 @@ if __name__ == "__main__":
                 raise NotImplementedError
             case _:
                 raise ValueError
+        # the following creates the actual data point
+        miao = TreePoint(
+            id=i,
+            a=point,
+            latent=Latent(
+                a=tosave["limg"],
+                margins=tosave["neigh_bounding_box"].transpose(),
+            ),
+            latentdt=LatentDT(
+                predicted_class=str(tosave["dt_pred"]),
+                model=tosave["dt"],
+                fidelity=tosave["fidelity"],
+                s_rules=str(tosave["rstr"]),
+                s_counterrules=tosave["cstr"],
+            ),
+            domain=my_domain,
+        )
+        # blackboxpd=BlackboxPD(predicted_class=str(tosave["bb_pred"])),
+        # TODO: check if this is the same conceptually of what I extract myself
+        miao.save()
+
     elif run_option == "list":
         all_records = list_all(dataset, bb_type)
         if all_records:
