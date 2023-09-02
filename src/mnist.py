@@ -221,7 +221,7 @@ def run_explain(
     img = X[index_tr]
     plt.imshow(img)
     plt.savefig(
-        f"./data/aemodels/{dataset}-/aae/explanation/img_to_explain_%s.png" % index_tr,
+        f"./data/aemodels/{dataset}/aae/explanation/img_to_explain_%s.png" % index_tr,
         dpi=150,
     )
 
