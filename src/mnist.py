@@ -167,7 +167,7 @@ def get_data(dataset: str = "mnist") -> tuple:
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
 
-def get_dataset_metadata(dataset: str, bb_type: str) -> dict:
+def get_dataset_metadata(dataset: str) -> dict:
     results = dict()
     results["ae_name"] = "aae"
     match dataset:
