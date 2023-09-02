@@ -12,10 +12,14 @@ warnings.filterwarnings("ignore")
 
 if __name__ == "__main__":
     try:
-        run_options = sys.argv[1]
+        dataset_option = sys.argv[1]
+        bb_option = sys.argv[2]
+        run_options = sys.argv[3]
     except IndexError:
         raise Exception(
-            """possible runtime arguments are:\n
+            """possible runtime arguments are:
+            dataset
+            bb
             understanding, delete-all, train-aae, train-bb, explain <index_image_to_explain>"""
         )
 
@@ -323,16 +327,18 @@ if __name__ == "__main__":
         console.print(table)
 
     elif run_options == "train-aae":
-        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data(
+            dataset_option
+        )
 
-        ae_name = get_dataset_metadata()["ae_name"]
-        dataset = get_dataset_metadata()["dataset"]
+        ae_name = get_dataset_metadata(dataset_option)["ae_name"]
+        dataset = get_dataset_metadata(dataset_option)["dataset"]
         batch_size = 256
         sample_interval = 200
 
         epochs = 10000  # g time intensive
 
-        path_aemodels = get_dataset_metadata()["path_aemodels"]
+        path_aemodels = get_dataset_metadata(dataset_option)["path_aemodels"]
 
         ae = get_autoencoder(X_train, ae_name, dataset, path_aemodels)
 
