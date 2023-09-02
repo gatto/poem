@@ -239,7 +239,7 @@ def run_explain(
         kernel=None,
         autoencoder=ae,
         use_rgb=get_dataset_metadata(dataset)["use_rgb"],
-        valid_thr=0.5,
+        valid_thr=0.35,  # was 0.5
         filter_crules=True,
         random_state=random_state,
         verbose=False,
