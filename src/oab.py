@@ -1127,7 +1127,7 @@ class Connection:
             case "mnist":
                 possible_bb = {"RF", "DNN"}
             case "fashion":
-                raise NotImplementedError
+                possible_bb = {"RF", "DNN"}
             case "custom":
                 raise NotImplementedError
             case _:
@@ -1160,9 +1160,9 @@ class Connection:
             case "fashion":
                 match self.bb_type:
                     case "RF":
-                        raise NotImplementedError
+                        data_table_path = data_path / "fashion-rf.db"
                     case "DNN":
-                        raise NotImplementedError
+                        data_table_path = data_path / "fashion-dnn.db"
                     case _:
                         raise NotImplementedError
             case "custom":
@@ -1247,7 +1247,7 @@ if __name__ == "__main__":
         case "mnist":
             pass
         case "fashion":
-            raise NotImplementedError
+            pass
         case _:
             raise NotImplementedError
 
@@ -1277,56 +1277,25 @@ if __name__ == "__main__":
     elif run_option in ("train", "test-train"):
         # test-train should be used until real train run
         my_domain = Domain(dataset, bb_type)
-        match dataset:
-            case "mnist":
-                (
-                    (X_train, Y_train),
-                    (X_test, Y_test),
-                    (X_tree, Y_tree),
-                ) = get_data()
-                if run_option == "test-train":
-                    # only for test purposes
-                    X_tree = X_tree[: int(sys.argv[4])]
-                    Y_tree = Y_tree[: int(sys.argv[4])]
-                match bb_type:
-                    case "RF":
-                        for i, point in enumerate(
-                            track(X_tree, description="Loading on sql…")
-                        ):
-                            try:
-                                with open(
-                                    Path(get_dataset_metadata()["path_aemodels"])
-                                    / f"explanation/{i}.pickle",
-                                    "rb",
-                                ) as f:
-                                    tosave = pickle.load(f)
-                            except FileNotFoundError:
-                                tosave = run_explain(
-                                    i, X_tree, Y_tree, dataset, bb_type
-                                )
-                    case "DNN":
-                        for i, point in enumerate(
-                            track(X_tree, description="Loading on sql…")
-                        ):
-                            try:
-                                with open(
-                                    Path(get_dataset_metadata()["path_aemodels"])
-                                    / f"explanation/{i}.pickle",
-                                    "rb",
-                                ) as f:
-                                    tosave = pickle.load(f)
-                            except FileNotFoundError:
-                                tosave = run_explain(
-                                    i, X_tree, Y_tree, dataset, bb_type
-                                )
-                    case _:
-                        raise ValueError
-            case "fashion":
-                raise NotImplementedError
-            case "custom":
-                raise NotImplementedError
-            case _:
-                raise ValueError
+        (
+            (X_train, Y_train),
+            (X_test, Y_test),
+            (X_tree, Y_tree),
+        ) = get_data(dataset)
+        if run_option == "test-train":
+            # only for test purposes
+            X_tree = X_tree[: int(sys.argv[4])]
+            Y_tree = Y_tree[: int(sys.argv[4])]
+        for i, point in enumerate(track(X_tree, description="Loading on sql…")):
+            try:
+                with open(
+                    Path(get_dataset_metadata(dataset, bb_type)["path_aemodels"])
+                    / f"explanation/{i}.pickle",
+                    "rb",
+                ) as f:
+                    tosave = pickle.load(f)
+            except FileNotFoundError:
+                tosave = run_explain(i, X_tree, Y_tree, dataset, bb_type)
         # the following creates the actual data point
         miao = TreePoint(
             id=i,
