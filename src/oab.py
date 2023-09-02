@@ -1289,7 +1289,7 @@ if __name__ == "__main__":
         for i, point in enumerate(track(X_tree, description="Loading on sql…")):
             try:
                 with open(
-                    Path(get_dataset_metadata(dataset, bb_type)["path_aemodels"])
+                    Path(get_dataset_metadata(dataset)["path_aemodels"])
                     / f"explanation/{i}.pickle",
                     "rb",
                 ) as f:
