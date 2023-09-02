@@ -13,7 +13,7 @@ import numpy as np
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
-from mnistdnn import (
+from mnist import (
     get_autoencoder,
     get_black_box,
     get_data,
@@ -173,9 +173,8 @@ class Blackbox:
                 # the original usage is: Y_pred = bb_predict(X_test)
 
             case "fashion":
-                black_box = "RF"
-                use_rgb = True
-                black_box_filename = f"./data/models/fashion_{black_box}"
+                use_rgb = False
+                black_box_filename = f"./data/models/fashion_{self.bb_type}"
 
                 results = dict()
                 results["predict"], results["predict_proba"] = get_black_box(
@@ -271,7 +270,7 @@ class Domain:
             case "mnist":
                 possible_bb = {"RF", "DNN"}
             case "fashion":
-                raise NotImplementedError
+                possible_bb = {"RF", "DNN"}
             case "custom":
                 raise NotImplementedError
             case _:
@@ -300,7 +299,19 @@ class Domain:
                     "path_aemodels"
                 ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
             case "fashion":
-                raise NotImplementedError
+                results["ae_name"] = "aae"
+                match self.bb_type:
+                    case "RF":
+                        pass
+                    case "DNN":
+                        pass
+                    case _:
+                        raise ValueError
+                results["dataset"] = "fashion"
+                results["shape"] = (28, 28, 3)
+                results[
+                    "path_aemodels"
+                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
             case "custom":
                 raise NotImplementedError
             case _:
@@ -313,7 +324,7 @@ class Domain:
             case "mnist":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "fashion":
-                raise NotImplementedError
+                return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "custom":
                 raise NotImplementedError
             case _:
@@ -322,13 +333,13 @@ class Domain:
     @ae.default
     def _ae_default(self):
         """
-        this works already too
+        this works already
         """
         match self.dataset_name:
             case "mnist":
                 pass
             case "fashion":
-                raise NotImplementedError
+                pass
             case "custom":
                 raise NotImplementedError
             case _:
@@ -338,13 +349,13 @@ class Domain:
     @blackbox.default
     def _blackbox_default(self):
         """
-        this works already
+        this works already too
         """
         match self.dataset_name:
             case "mnist":
                 pass
             case "fashion":
-                raise NotImplementedError
+                pass
             case "custom":
                 raise NotImplementedError
             case _:
@@ -1290,7 +1301,9 @@ if __name__ == "__main__":
                                 ) as f:
                                     tosave = pickle.load(f)
                             except FileNotFoundError:
-                                tosave = run_explain(i, X_tree, Y_tree)
+                                tosave = run_explain(
+                                    i, X_tree, Y_tree, dataset, bb_type
+                                )
                     case "DNN":
                         for i, point in enumerate(
                             track(X_tree, description="Loading on sql…")
@@ -1303,7 +1316,9 @@ if __name__ == "__main__":
                                 ) as f:
                                     tosave = pickle.load(f)
                             except FileNotFoundError:
-                                tosave = run_explain(i, X_tree, Y_tree)
+                                tosave = run_explain(
+                                    i, X_tree, Y_tree, dataset, bb_type
+                                )
                     case _:
                         raise ValueError
             case "fashion":

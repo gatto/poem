@@ -37,19 +37,18 @@ from rich.table import Table
 from skimage import feature, transform
 from skimage.color import gray2rgb
 from sklearn.metrics import accuracy_score, classification_report
-from tensorflow.keras.datasets import mnist
+from tensorflow.keras.datasets import fashion_mnist, mnist
 
 # parameters
 ae_name = "aae"
 random_state = None
-dataset = "mnist"
-black_box = "RF"
-use_rgb = False  # g with mnist dataset
-
 path = "./"
-path_aemodels = path + "data/aemodels/%s/%s/" % (dataset, ae_name)
+# black_box = "RF"
+# dataset = "mnist"
 
-path_aemodels = Path(path_aemodels)
+# path_aemodels = path + "data/aemodels/%s/%s/" % (dataset, ae_name)
+
+# path_aemodels = Path(path_aemodels)
 
 
 def rmse(x, y):
@@ -94,20 +93,19 @@ def get_data(dataset: str = "mnist") -> tuple:
     # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
     print("Loading dataset")
 
+    random.seed("gattonemiao")
+    indexing_condition = []
     match dataset:
         case "mnist":
-            # for grayscale:
             (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
             X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
 
             # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-            random.seed("gattonemiao")
             indexes = random.sample(
                 range(X_train.shape[0]), X_train.shape[0] // 6
             )  # g get a list of 1/6 indexes of the len of X_train
 
-            indexing_condition = []
             for x in track(
                 range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
             ):
@@ -128,38 +126,71 @@ def get_data(dataset: str = "mnist") -> tuple:
 
             X_train = X_train[~indexing_condition]
             Y_train = Y_train[~indexing_condition]
-        case "fashion-mnist":
-            pass
+        case "fashion":
+            (X_train, Y_train), (X_test, Y_test) = fashion_mnist.load_data()
+            X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
+            X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
+            # use_rgb = False
+
+            # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+            indexes = random.sample(
+                range(X_train.shape[0]), X_train.shape[0] // 12
+            )  # g get a list of 1/12 indexes of the len of X_train
+
+            for x in track(
+                range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
+            ):
+                if x in indexes:
+                    indexing_condition.append(True)
+                else:
+                    indexing_condition.append(False)
+            assert len(indexing_condition) == X_train.shape[0]
+
+            logging.info(
+                f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
+            )
+
+            indexing_condition = np.array(indexing_condition)
+
+            X_tree = X_train[indexing_condition]
+            Y_tree = Y_train[indexing_condition]
+
+            X_train = X_train[~indexing_condition]
+            Y_train = Y_train[~indexing_condition]
         case _:
             raise NotImplementedError
 
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
 
-def get_dataset_metadata(dataset: str = "mnist") -> dict:
+def get_dataset_metadata(dataset: str, bb_type: str) -> dict:
     results = dict()
+    results["ae_name"] = "aae"
     match dataset:
         case "mnist":
-            results["ae_name"] = "aae"
             results["dataset"] = "mnist"
+            results["use_rgb"] = False
 
             results[
                 "path_aemodels"
             ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-        case "fashion-mnist":
-            pass
+        case "fashion":
+            results["dataset"] = "fashion"
+            results["use_rgb"] = False
+
+            results[
+                "path_aemodels"
+            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+
         case _:
             raise NotImplementedError
 
     return results
 
 
-def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
-    """
-    This should, at some point, return what I need
-    i.e. the ILORE decision tree
-    possibly together with the `tosave` dict
-    """
+def run_explain(
+    index_tr: int, X: np.ndarray, Y: np.ndarray, dataset, black_box
+) -> dict:
     logging.info(f"Start run_explain of {index_tr}")
 
     class_values = ["%s" % i for i in range(len(np.unique(Y)))]
@@ -171,7 +202,7 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     black_box_filename = path_models + "%s_%s" % (dataset, black_box)
 
     bb_predict, bb_predict_proba = get_black_box(
-        black_box, black_box_filename, use_rgb
+        black_box, black_box_filename, get_dataset_metadata(dataset)["use_rgb"]
     )  # g this loads bb to disk and returns 2 functs
 
     # Y_pred = bb_predict(X)
@@ -182,11 +213,11 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
     )  # was next(trainGen) instead of X_train (xxx X_test or X_train?)
     ae.load_model()
 
-    print(f"explaining image #{index_tr} from supplied dataset")
+    print(f"explaining image #{index_tr} from supplied dataset {dataset}")
     img = X[index_tr]
     plt.imshow(img)
     plt.savefig(
-        "./data/aemodels/mnist/aae/explanation/img_to_explain_%s.png" % index_tr,
+        f"./data/aemodels/{dataset}-/aae/explanation/img_to_explain_%s.png" % index_tr,
         dpi=150,
     )
 
@@ -203,7 +234,7 @@ def run_explain(index_tr: int, X: np.ndarray, Y: np.ndarray) -> dict:
         kernel_width=None,
         kernel=None,
         autoencoder=ae,
-        use_rgb=use_rgb,
+        use_rgb=get_dataset_metadata(dataset)["use_rgb"],
         valid_thr=0.5,
         filter_crules=True,
         random_state=random_state,
@@ -274,7 +305,6 @@ if __name__ == "__main__":
         # empty_folder("./data")
         exit(0)
 
-    # # Data understanding
     if run_options == "understanding":
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
@@ -292,7 +322,6 @@ if __name__ == "__main__":
             table.add_row(f"{dataset_name}", f"{type(variable)}", f"{variable.shape}")
         console.print(table)
 
-    # Training autoencoder
     elif run_options == "train-aae":
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
@@ -360,10 +389,9 @@ if __name__ == "__main__":
         )
 
         console.print(table)
-    # end train autoencoder
 
-    # Black box training (xxx this was with fashion dataset, does it work with mnist?)
     elif run_options == "train-bb":
+        raise NotImplementedError  # this is because I'm working with pre-trained blackboxes
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
         print(f"{black_box} black box training on {dataset} with use_rgb: {use_rgb}")
@@ -406,9 +434,7 @@ if __name__ == "__main__":
         results = open(results_filename, "w")
         results.write("%s\n" % json.dumps(res, sort_keys=True, indent=4))
         results.close()
-    # end black box training
 
-    # explain images
     elif run_options == "explain":
         try:
             how_many = int(sys.argv[2])
@@ -439,4 +465,3 @@ if __name__ == "__main__":
         print(
             f"Explained instances from {max_i+1} to {max_i+how_many} amounting to {my_counter} instances."
         )
-        # end explain images
