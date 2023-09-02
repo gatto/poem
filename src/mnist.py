@@ -138,8 +138,8 @@ def get_data(dataset: str = "mnist") -> tuple:
 
             # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
             indexes = random.sample(
-                range(X_train.shape[0]), X_train.shape[0] // 12
-            )  # g get a list of 1/12 indexes of the len of X_train
+                range(X_train.shape[0]), X_train.shape[0] // 6
+            )  # g get a list of 1/6 indexes of the len of X_train
 
             for x in track(
                 range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
