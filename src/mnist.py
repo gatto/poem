@@ -443,7 +443,7 @@ if __name__ == "__main__":
 
     elif run_options == "explain":
         try:
-            how_many = int(sys.argv[2])
+            how_many = int(sys.argv[4])
         except IndexError:
             raise Exception(
                 """possible runtime arguments are:
