@@ -887,7 +887,13 @@ class Explainer:
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
             if point:
-                results.append(point)
+                # check if the point is classified same as class of testpoint
+                if point.blackboxpd == self.target.blackboxpd:
+                    results.append(point)
+
+        logging.info(
+            f"there are, after checks, {len(results)} points among which to choose {self.howmany}."
+        )
 
         # take the last how_many points, last because I'd like the farthest points
         if not closest:
@@ -1002,6 +1008,7 @@ def knn(point: TestPoint) -> TreePoint:
             latent_arrays.pop(index)
             continue  # start over
 
+        # check if bb predicted class match of testpoint and selected treepoint
         if point.blackboxpd == points[index].blackboxpd:
             logging.info("checked class")
             break  # we done
