@@ -453,7 +453,9 @@ if __name__ == "__main__":
             )
 
         my_counter = 0
-        explanation_path = Path(get_dataset_metadata()["path_aemodels"]) / "explanation"
+        explanation_path = (
+            Path(get_dataset_metadata(dataset_option)["path_aemodels"]) / "explanation"
+        )
 
         # check what I've already done
         hey = {int(path.stem) for path in explanation_path.glob("*.pickle")}
