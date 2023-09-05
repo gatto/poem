@@ -1,3 +1,4 @@
+import logging
 import pickle
 import random
 import warnings
@@ -13,7 +14,6 @@ warnings.filterwarnings("ignore")
 
 
 class ImageNeighborhoodGenerator(object):
-
     def __init__(self, bb_predict, ocr=0.1):
         self.bb_predict = bb_predict
         self.ocr = ocr  # other class ratio
@@ -24,9 +24,16 @@ class ImageNeighborhoodGenerator(object):
 
 
 class ImageAdversarialGeneratorLatent(ImageNeighborhoodGenerator):
-
-    def __init__(self, bb_predict, ocr=0.1, autoencoder=None, min_width=1, min_height=1,
-                 scale=False, valid_thr=0.5):
+    def __init__(
+        self,
+        bb_predict,
+        ocr=0.1,
+        autoencoder=None,
+        min_width=1,
+        min_height=1,
+        scale=False,
+        valid_thr=0.5,
+    ):
         super(ImageAdversarialGeneratorLatent, self).__init__(bb_predict, ocr)
         self.autoencoder = autoencoder
         self.min_width = min_width
@@ -145,28 +152,43 @@ class ImageAdversarialGeneratorLatent(ImageNeighborhoodGenerator):
 
 
 class ImageRandomAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
-
-    def __init__(self, bb_predict, ocr=0.1, autoencoder=None, min_width=1, min_height=1, scale=False, valid_thr=0.5):
-        super(ImageRandomAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder, min_width, min_height,
-                                                                    scale, valid_thr)
+    def __init__(
+        self,
+        bb_predict,
+        ocr=0.1,
+        autoencoder=None,
+        min_width=1,
+        min_height=1,
+        scale=False,
+        valid_thr=0.5,
+    ):
+        super(ImageRandomAdversarialGeneratorLatent, self).__init__(
+            bb_predict, ocr, autoencoder, min_width, min_height, scale, valid_thr
+        )
 
     def generate(self, img, num_samples=1000):
-
         # generate neighborhood in latent space, decode and label it
+        logging.info("before generate_latent_samples")
         lZ_img = self.generate_latent_samples(num_samples)
+        logging.info("before autoencoder.encode")
         lZ_img[0] = self.autoencoder.encode(np.array([img]))[0]
         # print('Latent space')
         # print(lZ_img[:5])
 
+        logging.info("before autoencoder.decode")
         Z_img = self.autoencoder.decode(lZ_img)
+        logging.info("before .copy")
         Z_img[0] = img.copy()
         # print('Real space')
         # print(Z_img.shape)
 
+        logging.info("before .bb_predict")
         Yb = self.bb_predict(Z_img)
         class_value = Yb[0]
 
+        logging.info("before ._balance_neigh")
         lZ_img, Z_img = self._balance_neigh(lZ_img, Z_img, Yb, num_samples, class_value)
+        logging.info("before second .bb_predict")
         Yb = self.bb_predict(Z_img)
 
         # lZ_img, Z_img, Yb = self._fix_neigh(lZ_img, Z_img, Yb, class_value)
@@ -174,7 +196,9 @@ class ImageRandomAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
         Z = np.array(lZ_img)
 
         if self.scale:
+            logging.info("before MinMaxScaler")
             scaler = MinMaxScaler()
+            logging.info("before fit transform")
             Z = scaler.fit_transform(Z)
 
         # print('Latent space 2')
@@ -185,12 +209,29 @@ class ImageRandomAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
 
 
 class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
-
-    def __init__(self, bb_predict, ocr=0.1, autoencoder=None, min_width=1, min_height=1, scale=False, valid_thr=0.5,
-                 alpha1=0.5, alpha2=0.5, metric=neuclidean, ngen=100, mutpb=0.2, cxpb=0.5,
-                 tournsize=3, halloffame_ratio=0.1, random_seed=None, verbose=False):
-        super(ImageGeneticAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder, min_width,
-                                                                     min_height, scale, valid_thr)
+    def __init__(
+        self,
+        bb_predict,
+        ocr=0.1,
+        autoencoder=None,
+        min_width=1,
+        min_height=1,
+        scale=False,
+        valid_thr=0.5,
+        alpha1=0.5,
+        alpha2=0.5,
+        metric=neuclidean,
+        ngen=100,
+        mutpb=0.2,
+        cxpb=0.5,
+        tournsize=3,
+        halloffame_ratio=0.1,
+        random_seed=None,
+        verbose=False,
+    ):
+        super(ImageGeneticAdversarialGeneratorLatent, self).__init__(
+            bb_predict, ocr, autoencoder, min_width, min_height, scale, valid_thr
+        )
 
         self.alpha1 = alpha1
         self.alpha2 = alpha2
@@ -204,7 +245,6 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
         random.seed(random_seed)
 
     def generate(self, img, num_samples=1000):
-
         # generate neighborhood in latent space, decode and label it
         num_samples_eq = int(np.round(num_samples * 0.5))
         num_samples_noteq = int(np.round(num_samples * 0.5))
@@ -215,8 +255,12 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
         population_eq, halloffame_eq, logbook_eq = self.fit(toolbox_eq, num_samples_eq)
         lZ_eq = self.add_halloffame(population_eq, halloffame_eq)
 
-        toolbox_noteq = self.setup_toolbox(limg, self.fitness_notequal, num_samples_noteq)
-        population_noteq, halloffame_noteq, logbook_noteq = self.fit(toolbox_noteq, num_samples_noteq)
+        toolbox_noteq = self.setup_toolbox(
+            limg, self.fitness_notequal, num_samples_noteq
+        )
+        population_noteq, halloffame_noteq, logbook_noteq = self.fit(
+            toolbox_noteq, num_samples_noteq
+        )
         lZ_noteq = self.add_halloffame(population_noteq, halloffame_noteq)
 
         lZ_img = np.concatenate((lZ_eq, lZ_noteq), axis=0)
@@ -249,9 +293,14 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
     def add_halloffame(self, population, halloffame):
         fitness_values = [p.fitness.wvalues[0] for p in population]
         fitness_values = sorted(fitness_values)
-        fitness_diff = [fitness_values[i + 1] - fitness_values[i] for i in range(0, len(fitness_values) - 1)]
+        fitness_diff = [
+            fitness_values[i + 1] - fitness_values[i]
+            for i in range(0, len(fitness_values) - 1)
+        ]
 
-        index = np.max(np.argwhere(fitness_diff == np.amax(fitness_diff)).flatten().tolist())
+        index = np.max(
+            np.argwhere(fitness_diff == np.amax(fitness_diff)).flatten().tolist()
+        )
         fitness_value_thr = fitness_values[index]
 
         Z = list()
@@ -270,8 +319,12 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
 
         toolbox = base.Toolbox()
         toolbox.register("feature_values", self.record_init, x)
-        toolbox.register("individual", tools.initIterate, creator.individual, toolbox.feature_values)
-        toolbox.register("population", tools.initRepeat, list, toolbox.individual, n=population_size)
+        toolbox.register(
+            "individual", tools.initIterate, creator.individual, toolbox.feature_values
+        )
+        toolbox.register(
+            "population", tools.initRepeat, list, toolbox.individual, n=population_size
+        )
 
         toolbox.register("clone", self.clone)
         toolbox.register("evaluate", evaluate, x)
@@ -292,9 +345,16 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
         stats.register("min", np.min)
         stats.register("max", np.max)
 
-        population, logbook = algorithms.eaSimple(population, toolbox, cxpb=self.cxpb, mutpb=self.mutpb,
-                                                  ngen=self.ngen, stats=stats, halloffame=halloffame,
-                                                  verbose=self.verbose)
+        population, logbook = algorithms.eaSimple(
+            population,
+            toolbox,
+            cxpb=self.cxpb,
+            mutpb=self.mutpb,
+            ngen=self.ngen,
+            stats=stats,
+            halloffame=halloffame,
+            verbose=self.verbose,
+        )
 
         return population, halloffame, logbook
 
@@ -311,19 +371,30 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
     def mutate(self, toolbox, x):
         while True:
             mutated = toolbox.clone(x)
-            mutation_mask = np.random.choice([False, True], self.autoencoder.latent_dim, p=[1 - self.mutpb, self.mutpb])
+            mutation_mask = np.random.choice(
+                [False, True],
+                self.autoencoder.latent_dim,
+                p=[1 - self.mutpb, self.mutpb],
+            )
             mutator = np.random.normal(size=self.autoencoder.latent_dim)
             mutated[mutation_mask] = mutator[mutation_mask]
             if self.autoencoder.discriminator is not None:
-                discriminator_out = self.autoencoder.discriminator.predict(mutated.reshape(1, -1))[0][0]
+                discriminator_out = self.autoencoder.discriminator.predict(
+                    mutated.reshape(1, -1)
+                )[0][0]
                 if discriminator_out > self.valid_thr:
-                    return mutated,
+                    return (mutated,)
             else:
-                return mutated,
+                return (mutated,)
 
     def fitness_equal(self, x, x1):
-        feature_similarity_score = 1.0 - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
-        feature_similarity = sigmoid(feature_similarity_score) if feature_similarity_score < 1.0 else 0.0
+        feature_similarity_score = (
+            1.0
+            - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
+        )
+        feature_similarity = (
+            sigmoid(feature_similarity_score) if feature_similarity_score < 1.0 else 0.0
+        )
 
         y = self.bb_predict(self.autoencoder.decode(np.array([x])))[0]
         y1 = self.bb_predict(self.autoencoder.decode(np.array([x1])))[0]
@@ -334,10 +405,13 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
         # print(target_similarity_score, target_similarity)
 
         evaluation = self.alpha1 * feature_similarity + self.alpha2 * target_similarity
-        return evaluation,
+        return (evaluation,)
 
     def fitness_notequal(self, x, x1):
-        feature_similarity_score = 1.0 - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
+        feature_similarity_score = (
+            1.0
+            - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
+        )
         feature_similarity = sigmoid(feature_similarity_score)
 
         y = self.bb_predict(self.autoencoder.decode(np.array([x])))[0]
@@ -349,41 +423,110 @@ class ImageGeneticAdversarialGeneratorLatent(ImageAdversarialGeneratorLatent):
         # print(target_similarity_score, target_similarity)
 
         evaluation = self.alpha1 * feature_similarity + self.alpha2 * target_similarity
-        return evaluation,
+        return (evaluation,)
 
 
-class ImageRandomGeneticAdversarialGeneratorLatent(ImageGeneticAdversarialGeneratorLatent,
-                                                   ImageRandomAdversarialGeneratorLatent):
-
-    def __init__(self, bb_predict, ocr=0.1, autoencoder=None, min_width=1, min_height=1, scale=False, valid_thr=0.5,
-                 alpha1=0.5, alpha2=0.5, metric=neuclidean, ngen=100, mutpb=0.2, cxpb=0.5,
-                 tournsize=3, halloffame_ratio=0.1, random_seed=None, verbose=False):
-        super(ImageRandomGeneticAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder,
-                                                                           min_width, min_height, scale, valid_thr)
-        super(ImageRandomGeneticAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder,
-                                                                           min_width, min_height, scale, valid_thr,
-                                                                           alpha1, alpha2, metric, ngen, mutpb, cxpb,
-                                                                           tournsize, halloffame_ratio, random_seed,
-                                                                           verbose)
+class ImageRandomGeneticAdversarialGeneratorLatent(
+    ImageGeneticAdversarialGeneratorLatent, ImageRandomAdversarialGeneratorLatent
+):
+    def __init__(
+        self,
+        bb_predict,
+        ocr=0.1,
+        autoencoder=None,
+        min_width=1,
+        min_height=1,
+        scale=False,
+        valid_thr=0.5,
+        alpha1=0.5,
+        alpha2=0.5,
+        metric=neuclidean,
+        ngen=100,
+        mutpb=0.2,
+        cxpb=0.5,
+        tournsize=3,
+        halloffame_ratio=0.1,
+        random_seed=None,
+        verbose=False,
+    ):
+        super(ImageRandomGeneticAdversarialGeneratorLatent, self).__init__(
+            bb_predict, ocr, autoencoder, min_width, min_height, scale, valid_thr
+        )
+        super(ImageRandomGeneticAdversarialGeneratorLatent, self).__init__(
+            bb_predict,
+            ocr,
+            autoencoder,
+            min_width,
+            min_height,
+            scale,
+            valid_thr,
+            alpha1,
+            alpha2,
+            metric,
+            ngen,
+            mutpb,
+            cxpb,
+            tournsize,
+            halloffame_ratio,
+            random_seed,
+            verbose,
+        )
 
     def generate(self, img, num_samples=1000):
-        Zr, Ybr, class_value = ImageRandomAdversarialGeneratorLatent.generate(self, img, num_samples // 2)
-        Zg, Ybg, _ = ImageGeneticAdversarialGeneratorLatent.generate(self, img, num_samples // 2)
+        Zr, Ybr, class_value = ImageRandomAdversarialGeneratorLatent.generate(
+            self, img, num_samples // 2
+        )
+        Zg, Ybg, _ = ImageGeneticAdversarialGeneratorLatent.generate(
+            self, img, num_samples // 2
+        )
         Z = np.concatenate((Zr, Zg[1:]), axis=0)
         Yb = np.concatenate((Ybr, Ybg[1:]), axis=0)
         return Z, Yb, class_value
 
 
-class ImageProbaGeneticAdversarialGeneratorLatent(ImageGeneticAdversarialGeneratorLatent):
-
-    def __init__(self, bb_predict, ocr=0.1, autoencoder=None, min_width=1, min_height=1, scale=False, valid_thr=0.5,
-                 alpha1=0.5, alpha2=0.5, metric=neuclidean, ngen=100, mutpb=0.2, cxpb=0.5,
-                 tournsize=3, halloffame_ratio=0.1, bb_predict_proba=None, random_seed=None, verbose=False):
-        super(ImageProbaGeneticAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder,
-                                                                          min_width, min_height, scale, valid_thr,
-                                                                          alpha1, alpha2, metric, ngen, mutpb, cxpb,
-                                                                          tournsize, halloffame_ratio, random_seed,
-                                                                          verbose)
+class ImageProbaGeneticAdversarialGeneratorLatent(
+    ImageGeneticAdversarialGeneratorLatent
+):
+    def __init__(
+        self,
+        bb_predict,
+        ocr=0.1,
+        autoencoder=None,
+        min_width=1,
+        min_height=1,
+        scale=False,
+        valid_thr=0.5,
+        alpha1=0.5,
+        alpha2=0.5,
+        metric=neuclidean,
+        ngen=100,
+        mutpb=0.2,
+        cxpb=0.5,
+        tournsize=3,
+        halloffame_ratio=0.1,
+        bb_predict_proba=None,
+        random_seed=None,
+        verbose=False,
+    ):
+        super(ImageProbaGeneticAdversarialGeneratorLatent, self).__init__(
+            bb_predict,
+            ocr,
+            autoencoder,
+            min_width,
+            min_height,
+            scale,
+            valid_thr,
+            alpha1,
+            alpha2,
+            metric,
+            ngen,
+            mutpb,
+            cxpb,
+            tournsize,
+            halloffame_ratio,
+            random_seed,
+            verbose,
+        )
         self.bb_predict_proba = bb_predict_proba
 
     def fitness_equal(self, x, x1):
@@ -393,8 +536,13 @@ class ImageProbaGeneticAdversarialGeneratorLatent(ImageGeneticAdversarialGenerat
         return self.fitness_notequal_proba(x, x1)
 
     def fitness_equal_proba(self, x, x1):
-        feature_similarity_score = 1.0 - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
-        feature_similarity = sigmoid(feature_similarity_score) if feature_similarity_score < 1.0 else 0.0
+        feature_similarity_score = (
+            1.0
+            - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
+        )
+        feature_similarity = (
+            sigmoid(feature_similarity_score) if feature_similarity_score < 1.0 else 0.0
+        )
         # feature_similarity = sigmoid(feature_similarity_score)
         # print(feature_similarity_score, feature_similarity)
 
@@ -409,10 +557,13 @@ class ImageProbaGeneticAdversarialGeneratorLatent(ImageGeneticAdversarialGenerat
 
         evaluation = self.alpha1 * feature_similarity + self.alpha2 * target_similarity
         # print(evaluation)
-        return evaluation,
+        return (evaluation,)
 
     def fitness_notequal_proba(self, x, x1):
-        feature_similarity_score = 1.0 - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
+        feature_similarity_score = (
+            1.0
+            - cdist(x.reshape(1, -1), x1.reshape(1, -1), metric=self.metric).ravel()[0]
+        )
         feature_similarity = sigmoid(feature_similarity_score)
 
         y = self.bb_predict_proba(self.autoencoder.decode(np.array([x])))[0]
@@ -424,28 +575,64 @@ class ImageProbaGeneticAdversarialGeneratorLatent(ImageGeneticAdversarialGenerat
         # print(target_similarity_score, target_similarity)
 
         evaluation = self.alpha1 * feature_similarity + self.alpha2 * target_similarity
-        return evaluation,
+        return (evaluation,)
 
 
-class ImageRandomProbaGeneticAdversarialGeneratorLatent(ImageProbaGeneticAdversarialGeneratorLatent,
-                                                        ImageRandomAdversarialGeneratorLatent):
-
-    def __init__(self, bb_predict, ocr=0.1, autoencoder=None,
-                 min_width=1, min_height=1, scale=False, valid_thr=0.5,
-                 alpha1=0.5, alpha2=0.5, metric=neuclidean, ngen=100, mutpb=0.2, cxpb=0.5,
-                 tournsize=3, halloffame_ratio=0.1, bb_predict_proba=None, random_seed=None, verbose=False):
-        super(ImageRandomProbaGeneticAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder,
-                                                                                min_width, min_height, scale, valid_thr)
-        super(ImageRandomProbaGeneticAdversarialGeneratorLatent, self).__init__(bb_predict, ocr, autoencoder,
-                                                                                min_width, min_height, scale, valid_thr,
-                                                                                alpha1, alpha2, metric, ngen, mutpb,
-                                                                                cxpb, tournsize, halloffame_ratio,
-                                                                                bb_predict_proba, random_seed, verbose)
+class ImageRandomProbaGeneticAdversarialGeneratorLatent(
+    ImageProbaGeneticAdversarialGeneratorLatent, ImageRandomAdversarialGeneratorLatent
+):
+    def __init__(
+        self,
+        bb_predict,
+        ocr=0.1,
+        autoencoder=None,
+        min_width=1,
+        min_height=1,
+        scale=False,
+        valid_thr=0.5,
+        alpha1=0.5,
+        alpha2=0.5,
+        metric=neuclidean,
+        ngen=100,
+        mutpb=0.2,
+        cxpb=0.5,
+        tournsize=3,
+        halloffame_ratio=0.1,
+        bb_predict_proba=None,
+        random_seed=None,
+        verbose=False,
+    ):
+        super(ImageRandomProbaGeneticAdversarialGeneratorLatent, self).__init__(
+            bb_predict, ocr, autoencoder, min_width, min_height, scale, valid_thr
+        )
+        super(ImageRandomProbaGeneticAdversarialGeneratorLatent, self).__init__(
+            bb_predict,
+            ocr,
+            autoencoder,
+            min_width,
+            min_height,
+            scale,
+            valid_thr,
+            alpha1,
+            alpha2,
+            metric,
+            ngen,
+            mutpb,
+            cxpb,
+            tournsize,
+            halloffame_ratio,
+            bb_predict_proba,
+            random_seed,
+            verbose,
+        )
 
     def generate(self, img, num_samples=1000):
-        Zr, Ybr, class_value = ImageRandomAdversarialGeneratorLatent.generate(self, img, num_samples // 2)
-        Zg, Ybg, _ = ImageProbaGeneticAdversarialGeneratorLatent.generate(self, img, num_samples // 2)
+        Zr, Ybr, class_value = ImageRandomAdversarialGeneratorLatent.generate(
+            self, img, num_samples // 2
+        )
+        Zg, Ybg, _ = ImageProbaGeneticAdversarialGeneratorLatent.generate(
+            self, img, num_samples // 2
+        )
         Z = np.concatenate((Zr, Zg[1:]), axis=0)
         Yb = np.concatenate((Ybr, Ybg[1:]), axis=0)
         return Z, Yb, class_value
-
