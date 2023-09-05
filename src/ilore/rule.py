@@ -1,13 +1,13 @@
 import copy
 import json
 from collections import defaultdict
+import logging
 
 import numpy as np
 from ilore.util import vector2dict
 
 
 class Condition(object):
-
     def __init__(self, att, op, thr, is_continuous=True):
         self.att = att
         self.op = op
@@ -16,11 +16,11 @@ class Condition(object):
 
     def __str__(self):
         if self.is_continuous:
-            return '%s %s %.2f' % (self.att, self.op, self.thr)
+            return "%s %s %.2f" % (self.att, self.op, self.thr)
         else:
-            att_split = self.att.split('=')
-            sign = '=' if self.op == '>' else '!='
-            return '%s %s %s' % (att_split[0], sign, att_split[1])
+            att_split = self.att.split("=")
+            sign = "=" if self.op == ">" else "!="
+            return "%s %s %s" % (att_split[0], sign, att_split[1])
 
     def __eq__(self, other):
         return self.att == other.att and self.op == other.op and self.thr == other.thr
@@ -30,23 +30,22 @@ class Condition(object):
 
 
 class Rule(object):
-
     def __init__(self, premises, cons, class_name):
         self.premises = premises
         self.cons = cons
         self.class_name = class_name
 
     def _pstr(self):
-        return '{ %s }' % (', '.join([str(p) for p in self.premises]))
+        return "{ %s }" % (", ".join([str(p) for p in self.premises]))
 
     def _cstr(self):
         if not isinstance(self.class_name, list):
-            return '{ %s: %s }' % (self.class_name, self.cons)
+            return "{ %s: %s }" % (self.class_name, self.cons)
         else:
-            return '{ %s }' % self.cons
+            return "{ %s }" % self.cons
 
     def __str__(self):
-        return '%s --> %s' % (self._pstr(), self._cstr())
+        return "%s --> %s" % (self._pstr(), self._cstr())
 
     def __eq__(self, other):
         return self.premises == other.premises and self.cons == other.cons
@@ -60,80 +59,96 @@ class Rule(object):
     def is_covered(self, x, feature_names):
         xd = vector2dict(x, feature_names)
         for p in self.premises:
-            if p.op == '<=' and xd[p.att] > p.thr:
+            if p.op == "<=" and xd[p.att] > p.thr:
                 return False
-            elif p.op == '>' and xd[p.att] <= p.thr:
+            elif p.op == ">" and xd[p.att] <= p.thr:
                 return False
         return True
 
 
 def json2cond(obj):
-    return Condition(obj['att'], obj['op'], obj['thr'], obj['is_continuous'])
+    return Condition(obj["att"], obj["op"], obj["thr"], obj["is_continuous"])
 
 
 def json2rule(obj):
-    premises = [json2cond(p) for p in obj['premise']]
-    cons = obj['cons']
-    class_name = obj['class_name']
+    premises = [json2cond(p) for p in obj["premise"]]
+    cons = obj["cons"]
+    class_name = obj["class_name"]
     return Rule(premises, cons, class_name)
 
 
 class ConditionEncoder(json.JSONEncoder):
-    """ Special json encoder for Condition types """
+    """Special json encoder for Condition types"""
+
     def default(self, obj):
         if isinstance(obj, Condition):
             json_obj = {
-                'att': obj.att,
-                'op': obj.op,
-                'thr': obj.thr,
-                'is_continuous': obj.is_continuous,
+                "att": obj.att,
+                "op": obj.op,
+                "thr": obj.thr,
+                "is_continuous": obj.is_continuous,
             }
             return json_obj
         return json.JSONEncoder.default(self, obj)
 
 
 class RuleEncoder(json.JSONEncoder):
-    """ Special json encoder for Rule types """
+    """Special json encoder for Rule types"""
+
     def default(self, obj):
         if isinstance(obj, Rule):
             ce = ConditionEncoder()
             json_obj = {
-                'premise': [ce.default(p) for p in obj.premises],
-                'cons': obj.cons,
-                'class_name': obj.class_name
+                "premise": [ce.default(p) for p in obj.premises],
+                "cons": obj.cons,
+                "class_name": obj.class_name,
             }
             return json_obj
         return json.JSONEncoder.default(self, obj)
 
 
 def get_rule(x, dt, feature_names, class_name, class_values, numeric_columns):
-
+    logging.warning("1")
     x = x.reshape(1, -1)
+    logging.warning("2")
     feature = dt.tree_.feature
+    logging.warning("3")
     threshold = dt.tree_.threshold
 
+    logging.warning("4")
     leave_id = dt.apply(x)
+    logging.warning("5")
     node_index = dt.decision_path(x).indices
 
+    logging.warning("6")
     premises = list()
+    logging.warning("7")
     for node_id in node_index:
         if leave_id[0] == node_id:
             break
         else:
-            op = '<=' if x[0][feature[node_id]] <= threshold[node_id] else '>'
+            logging.warning("8a")
+            op = "<=" if x[0][feature[node_id]] <= threshold[node_id] else ">"
+            logging.warning("8b")
             att = feature_names[feature[node_id]]
+            logging.warning("8c")
             thr = threshold[node_id]
+            logging.warning("8d")
             iscont = att in numeric_columns
+            logging.warning("8e")
             premises.append(Condition(att, op, thr, iscont))
 
+    logging.warning("9")
     dt_outcome = dt.predict(x)[0]
+    logging.warning("10")
     cons = class_values[int(dt_outcome)]
+    logging.warning("11")
     premises = compact_premises(premises)
+    logging.warning("12")
     return Rule(premises, cons, class_name)
 
 
 def get_rules(dt, feature_names, class_name, class_values, numeric_columns):
-
     n_nodes = dt.tree_.node_count
     feature = dt.tree_.feature
     threshold = dt.tree_.threshold
@@ -153,9 +168,9 @@ def get_rules(dt, feature_names, class_name, class_values, numeric_columns):
             stack.append((children_left[node_id], parent_depth + 1))
             stack.append((children_right[node_id], parent_depth + 1))
             reverse_dt_dict[children_left[node_id]] = node_id
-            left_right[(node_id, children_left[node_id])] = 'l'
+            left_right[(node_id, children_left[node_id])] = "l"
             reverse_dt_dict[children_right[node_id]] = node_id
-            left_right[(node_id, children_right[node_id])] = 'r'
+            left_right[(node_id, children_right[node_id])] = "r"
         else:
             is_leaves[node_id] = True
 
@@ -176,13 +191,12 @@ def get_rules(dt, feature_names, class_name, class_values, numeric_columns):
 
         rules = list()
         for node_index in node_index_list:
-
             premises = list()
             for i in range(len(node_index) - 1):
                 node_id = node_index[i]
-                child_id = node_index[i+1]
+                child_id = node_index[i + 1]
 
-                op = '<=' if left_right[(node_id, child_id)] == 'l' else '>'
+                op = "<=" if left_right[(node_id, child_id)] == "l" else ">"
                 att = feature_names[feature[node_id]]
                 thr = threshold[node_id]
                 iscont = att in numeric_columns
@@ -211,30 +225,44 @@ def compact_premises(plist):
             min_thr = None
             max_thr = None
             for av in alist:
-                if av.op == '<=':
+                if av.op == "<=":
                     max_thr = min(av.thr, max_thr) if max_thr else av.thr
-                elif av.op == '>':
+                elif av.op == ">":
                     min_thr = max(av.thr, min_thr) if min_thr else av.thr
 
             if max_thr:
-                compact_plist.append(Condition(att, '<=', max_thr))
+                compact_plist.append(Condition(att, "<=", max_thr))
 
             if min_thr:
-                compact_plist.append(Condition(att, '>', min_thr))
+                compact_plist.append(Condition(att, ">", min_thr))
         else:
             compact_plist.append(alist[0])
     return compact_plist
 
 
-def get_counterfactual_rules(x, y, dt, Z, Y, feature_names, class_name, class_values, numeric_columns, autoencoder,
-                             bb_predict=None, eps=0.01):
+def get_counterfactual_rules(
+    x,
+    y,
+    dt,
+    Z,
+    Y,
+    feature_names,
+    class_name,
+    class_values,
+    numeric_columns,
+    autoencoder,
+    bb_predict=None,
+    eps=0.01,
+):
     clen = np.inf
     crule_list = list()
     delta_list = list()
     Z1 = Z[np.where(Y != y)[0]]
     xd = vector2dict(x, feature_names)
     for z in Z1:
-        crule = get_rule(z, dt, feature_names, class_name, class_values, numeric_columns)
+        crule = get_rule(
+            z, dt, feature_names, class_name, class_values, numeric_columns
+        )
         delta, qlen = get_falsified_conditions(xd, crule)
         if qlen < clen:
             clen = qlen
@@ -270,10 +298,10 @@ def get_falsified_conditions(xd, crule):
     delta = list()
     nbr_falsified_conditions = 0
     for p in crule.premises:
-        if p.op == '<=' and xd[p.att] > p.thr:
+        if p.op == "<=" and xd[p.att] > p.thr:
             delta.append(p)
             nbr_falsified_conditions += 1
-        elif p.op == '>' and xd[p.att] <= p.thr:
+        elif p.op == ">" and xd[p.att] <= p.thr:
             delta.append(p)
             nbr_falsified_conditions += 1
     return delta, nbr_falsified_conditions
@@ -283,7 +311,7 @@ def apply_counterfactual(x, delta, feature_names, eps=0.01):
     xd = vector2dict(x, feature_names)
     xcd = copy.deepcopy(xd)
     for p in delta:
-        if p.op == '>':
+        if p.op == ">":
             xcd[p.att] = p.thr + eps
         else:
             xcd[p.att] = p.thr - eps
@@ -293,5 +321,3 @@ def apply_counterfactual(x, delta, feature_names, eps=0.01):
         xc[i] = xcd[fn]
 
     return xc
-
-
