@@ -140,6 +140,9 @@ def get_rule(x, dt, feature_names, class_name, class_values, numeric_columns):
 
     logging.warning("9")
     dt_outcome = dt.predict(x)[0]
+
+    logging.warning(class_values)
+    logging.warning(dt_outcome)
     logging.warning("10")
     cons = class_values[int(dt_outcome)]
     logging.warning("11")

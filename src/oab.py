@@ -1,7 +1,16 @@
+import logging
+
+logging.basicConfig(
+    filename="./data/mnist-oab-dnnbug.log",
+    filemode="a",
+    format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+    level=logging.INFO,
+)
+
 import copy
 import io
 import json
-import logging
 import pickle
 import random
 import sqlite3
