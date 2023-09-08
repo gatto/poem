@@ -896,7 +896,7 @@ class Explainer:
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
             if point:
-                # check if the point is classified same as class of testpoint
+                # check 1f (factual): if the point is classified same as class of testpoint
                 if point.blackboxpd == self.target.blackboxpd:
                     results.append(point)
 
@@ -1003,33 +1003,44 @@ def knn(point: TestPoint) -> TreePoint:
 
         fitted_model = neigh.kneighbors([point.latent.a])
         # if I need the distance it's here… fitted_model[0][0][0]: np.float64
-        index: np.int64 = fitted_model[1][0][0]
+        target_index: np.int64 = fitted_model[1][0][0]
 
-        # check the margins of the latent space (poliedro check)
-        if point in points[index].latent:
+        # check 1: the margins of the latent space (poliedro check)
+        if point in points[target_index].latent:
             # if it's in the margins
             logging.info("checked margins")
             pass  # go to next check
         else:
             # otherwise, pop that point (don't need it) and start again
             logging.warning("popped a point bc of margins")
-            points.pop(index)
-            latent_arrays.pop(index)
+            points.pop(target_index)
+            latent_arrays.pop(target_index)
             continue  # start over
 
-        # check if bb predicted class match of testpoint and selected treepoint
-        if point.blackboxpd == points[index].blackboxpd:
+        # check 2: if bb predicted class match of testpoint and selected treepoint
+        if point.blackboxpd == points[target_index].blackboxpd:
             logging.info("checked class")
-            break  # we done
+            pass  # go to next check
         else:
             # otherwise, pop that point (don't need it) and start again
             logging.warning("popped a point bc of BlackboxPD mismatch")
-            points.pop(index)
-            latent_arrays.pop(index)
+            points.pop(target_index)
+            latent_arrays.pop(target_index)
+            continue  # start over
+
+        # check 3: if testpoint doesn't satisfy target's positive rule
+        if point in points[target_index].latentdt.rule:
+            logging.info("checked positive rule")
+            break  # we done
+        else:
+            # otherwise, pop that point (don't need it) and start again
+            logging.warning("popped a point bc of positive rule failure")
+            points.pop(target_index)
+            latent_arrays.pop(target_index)
             continue  # start over
 
     # I return the entire TreePoint though
-    return points[index]
+    return points[target_index]
 
 
 def list_all(dataset_name, bb_type) -> list[int]:
