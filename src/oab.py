@@ -549,22 +549,25 @@ class TreePoint:
             )
 
     def save(self):
+        data = (
+            self.id,
+            self.a,
+            self.latent.a,
+            self.latent.margins,
+            self.latentdt.predicted_class,
+            self.latentdt.model_json,
+            self.latentdt.fidelity,
+            self.latentdt.s_rules,
+            self.latentdt.s_counterrules,
+            self.blackboxpd.predicted_class,
+            self.domain.dataset_name,
+        )
+
         with Connection(self.domain.dataset_name, self.domain.bb_type) as con:
             cur = con.cursor()
-
-            data = (
-                self.id,
-                self.a,
-                self.latent.a,
-                self.latent.margins,
-                self.latentdt.predicted_class,
-                self.latentdt.model_json,
-                self.latentdt.fidelity,
-                self.latentdt.s_rules,
-                self.latentdt.s_counterrules,
-                self.blackboxpd.predicted_class,
-                self.domain.dataset_name,
-            )
+            print(f"what we doing? {self.id}")
+            print(self.domain.dataset_name, self.domain.bb_type)
+            exit(1)
             cur.execute(
                 f"INSERT INTO data VALUES {_data_table_structure_query()}", data
             )
@@ -1304,6 +1307,7 @@ if __name__ == "__main__":
             Y_tree = Y_tree[: int(sys.argv[4])]
             print(f"{len(X_tree)=}")
         for i, point in enumerate(track(X_tree, description="Loading on sql…")):
+            print(i)
             try:
                 with open(
                     Path(get_dataset_metadata(dataset)["path_aemodels"])
