@@ -281,7 +281,9 @@ def run_explain(
         "centroid": np.mean(exp.Z, axis=0),
     }
 
-    with open(f"./data/aemodels/mnist/aae/explanation/{index_tr}.pickle", "wb") as f:
+    with open(
+        f"./data/aemodels/{dataset}/aae/explanation/{index_tr}.pickle", "wb"
+    ) as f:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     # this is temporary like the return following
