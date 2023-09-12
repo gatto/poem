@@ -265,7 +265,7 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list = field(init=False, default=None)
+    explanation_base: list | None = field(init=False, default=None)
 
     @dataset_name.validator
     def _dataset_validator(self, attribute, value):
@@ -775,7 +775,7 @@ class TestPoint:
 
 
 def ranking_knn(
-    target: TestPoint, my_points: list[ImageExplanation]
+    target: TestPoint, my_points: list[ImageExplanation] | list[TreePoint]
 ) -> list[tuple[float, int]]:
     """
     outputs a list of ImageExplanation
@@ -791,6 +791,7 @@ def ranking_knn(
     # results[1].shape = (1, n_neighbors) are the indexes
     results = zip(results[0][0], results[1][0])
     results = list(sorted(results))
+    print(f"For debug purposes:\n{results[:5]}")
     return results
 
 
@@ -986,7 +987,7 @@ def knn(point: TestPoint) -> TreePoint:
     logging.info("start of knn")
 
     points: list[TreePoint] = point.domain.explanation_base
-    logging.info("loaded all")
+    logging.info(f"loaded all {len(points)} amount of points in explanation base")
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
     logging.info("done latent_arrays")
     while True:
@@ -1058,8 +1059,8 @@ def list_all(dataset_name, bb_type) -> list[int]:
 
 def load(domain: Domain, id: int | set | list | tuple) -> None | TreePoint:
     """
-    Loads a TrainPoint if you pass an id:int
-    Loads a list of TrainPoints ordered by id if you pass a collection
+    Loads a TreePoint if you pass an id:int
+    Loads a list of TreePoints ordered by id if you pass a collection
     """
     if isinstance(id, int):
         with Connection(domain.dataset_name, domain.bb_type) as con:
