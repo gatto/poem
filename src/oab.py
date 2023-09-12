@@ -778,7 +778,7 @@ def ranking_knn(
     target: TestPoint, my_points: list[ImageExplanation] | list[TreePoint]
 ) -> list[tuple[float, int]]:
     """
-    outputs a list of ImageExplanation
+    outputs a list of indexes
     in ascending order of distance from target
     closest point is index=0, farthest point is index=len(my_points)
     """
@@ -990,21 +990,13 @@ def knn(point: TestPoint) -> TreePoint:
     logging.info(f"loaded all {len(points)} amount of points in explanation base")
     latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
     logging.info("done latent_arrays")
-    while True:
-        if not points:
-            raise RuntimeError("We've run out of tree points during knn")
+    # indexes_by_distance is a tuple(distance, index of record at that distance)
+    indexes_by_distance: tuple(float, int) = ranking_knn(target=point, my_points=points)
+
+    for target_index in indexes_by_distance:
         # this while loop's purpose is to continue looking for 1NN sample points
         # if the first sample point result `points[index]` is discarded because TestPoint
         # is not in the sampled point's margins
-        neigh = NearestNeighbors(n_neighbors=1)
-
-        # I train this on the np.ndarray latent repr of the points,
-        neigh.fit(latent_arrays)
-        logging.info("fitted KNN")
-
-        fitted_model = neigh.kneighbors([point.latent.a])
-        # if I need the distance it's here… fitted_model[0][0][0]: np.float64
-        target_index: np.int64 = fitted_model[1][0][0]
 
         # check 1: the margins of the latent space (poliedro check)
         if point in points[target_index].latent:
@@ -1012,10 +1004,8 @@ def knn(point: TestPoint) -> TreePoint:
             logging.info("checked margins")
             pass  # go to next check
         else:
-            # otherwise, pop that point (don't need it) and start again
+            # otherwise, go to next point
             logging.warning("popped a point bc of margins")
-            points.pop(target_index)
-            latent_arrays.pop(target_index)
             continue  # start over
 
         # check 2: if bb predicted class match of testpoint and selected treepoint
@@ -1023,25 +1013,23 @@ def knn(point: TestPoint) -> TreePoint:
             logging.info("checked class")
             pass  # go to next check
         else:
-            # otherwise, pop that point (don't need it) and start again
+            # otherwise, go to next point
             logging.warning("popped a point bc of BlackboxPD mismatch")
-            points.pop(target_index)
-            latent_arrays.pop(target_index)
             continue  # start over
 
         # check 3: if testpoint doesn't satisfy target's positive rule
         if point in points[target_index].latentdt.rule:
             logging.info("checked positive rule")
-            break  # we done
+
+            # we done
+            # I return the entire TreePoint
+            return points[target_index]
         else:
             # otherwise, pop that point (don't need it) and start again
             logging.warning("popped a point bc of positive rule failure")
-            points.pop(target_index)
-            latent_arrays.pop(target_index)
             continue  # start over
 
-    # I return the entire TreePoint though
-    return points[target_index]
+    raise RuntimeError("We've run out of TreePoints during knn")
 
 
 def list_all(dataset_name, bb_type) -> list[int]:
@@ -1314,6 +1302,7 @@ if __name__ == "__main__":
             # only for test purposes
             X_tree = X_tree[: int(sys.argv[4])]
             Y_tree = Y_tree[: int(sys.argv[4])]
+            print(f"{len(X_tree)=}")
         for i, point in enumerate(track(X_tree, description="Loading on sql…")):
             try:
                 with open(
