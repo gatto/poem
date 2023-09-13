@@ -178,6 +178,7 @@ def get_dataset_metadata(dataset: str) -> dict:
             results[
                 "path_aemodels"
             ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case "fashion":
             results["dataset"] = "fashion"
             results["use_rgb"] = False
@@ -185,7 +186,7 @@ def get_dataset_metadata(dataset: str) -> dict:
             results[
                 "path_aemodels"
             ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-
+            results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case _:
             raise NotImplementedError
 
@@ -197,7 +198,7 @@ def run_explain(
 ) -> dict:
     logging.info(f"Start run_explain of {index_tr}")
 
-    class_values = ["%s" % i for i in range(len(np.unique(Y)))]
+    class_values = get_dataset_metadata(dataset)
     print(f"Classes are: {class_values}")
 
     # ILOREM
