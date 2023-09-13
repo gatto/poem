@@ -198,7 +198,7 @@ def run_explain(
 ) -> dict:
     logging.info(f"Start run_explain of {index_tr}")
 
-    class_values = get_dataset_metadata(dataset)
+    class_values = get_dataset_metadata(dataset)["classes"]
     print(f"Classes are: {class_values}")
 
     # ILOREM
