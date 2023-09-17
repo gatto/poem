@@ -996,6 +996,7 @@ def knn(point: TestPoint) -> TreePoint:
     indexes_by_distance: tuple(float, int) = ranking_knn(target=point, my_points=points)
 
     for target_index in indexes_by_distance:
+        target_index = target_index[1]
         # this while loop's purpose is to continue looking for 1NN sample points
         # if the first sample point result `points[index]` is discarded because TestPoint
         # is not in the sampled point's margins
