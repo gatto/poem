@@ -896,17 +896,21 @@ class Explainer:
         logging.info(f"Doing factuals with target point id={self.target.id}")
         results = []
 
+        print(f"{self.howmany=}")
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
             if point:
+                print(f"yes point {factual}, {closest=}")
                 # check 1f (factual): if the point is classified same as class of testpoint
+                print(f"{point.blackboxpd=} == {self.target.blackboxpd=}?")
                 if point.blackboxpd == self.target.blackboxpd:
+                    print("yes")
                     results.append(point)
 
         logging.info(
             f"there are, after checks, {len(results)} points among which to choose {self.howmany}."
         )
-
+        print(f"{len(results)=}")
         # take the last how_many points, last because I'd like the farthest points
         if not closest:
             ranking = ranking_knn(self.target, results)[-self.howmany :]
