@@ -18,9 +18,9 @@ if __name__ == "__main__":
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
-            dataset
-            bb
-            understanding, delete-all, train-aae, train-bb, explain <index_image_to_explain>"""
+            mnist | fashion (dataset)
+            rf | dnn (blackbox model)
+            understanding | delete-all | train-aae | train-bb | explain <index_image_to_explain>"""
         )
 
 Path("./data").mkdir(exist_ok=True)
@@ -400,30 +400,34 @@ if __name__ == "__main__":
         console.print(table)
 
     elif run_options == "train-bb":
-        raise NotImplementedError  # this is because I'm working with pre-trained blackboxes
-        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
+        (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data(
+            dataset_option
+        )
+        use_rgb = get_dataset_metadata(dataset_option)["use_rgb"]
 
-        print(f"{black_box} black box training on {dataset} with use_rgb: {use_rgb}")
+        print(
+            f"{bb_option} black box training on {dataset_option} with use_rgb: {use_rgb}"
+        )
         print(f"X_train.shape: {X_train.shape}")
         print(f"X_test.shape: {X_test.shape}")
 
         path_models = path + "data/models/"
         path_results = path + "data/results/bb/"
 
-        black_box_filename = path_models + "%s_%s" % (dataset, black_box)
-        results_filename = path_results + "%s_%s.json" % (dataset, black_box)
+        black_box_filename = path_models + "%s_%s" % (dataset_option, bb_option)
+        results_filename = path_results + "%s_%s.json" % (dataset_option, bb_option)
 
         train_black_box(
             X_train,
             Y_train,
-            dataset,
-            black_box,
+            dataset_option,
+            bb_option,
             black_box_filename,
             use_rgb,
             967,
         )  # g this fits and saves bb to disk
         bb_predict, bb_predict_proba = get_black_box(
-            black_box, black_box_filename, use_rgb
+            bb_option, black_box_filename, use_rgb
         )  # g this loads bb to disk and returns 2 functs
 
         Y_pred = bb_predict(X_test)
@@ -435,8 +439,8 @@ if __name__ == "__main__":
         print(cr)
         cr = classification_report(Y_test, Y_pred, output_dict=True)
         res = {
-            "dataset": dataset,
-            "black_box": black_box,
+            "dataset": dataset_option,
+            "black_box": bb_option,
             "accuracy": acc,
             "report": cr,
         }
