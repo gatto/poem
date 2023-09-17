@@ -846,17 +846,17 @@ class Explainer:
             point: ImageExplanation = self.testpoint.marginal_apply(rule, more=more)
 
             # it might be that we can't get an image accepted by the
-            # discriminator. Therefore might be that point is None
-            if point:
-                # after that, it might be that the point is not a counterfactual (classifies the same). Drop that.
-                if point.blackboxpd != self.target.blackboxpd:
-                    results.append(point)
-                    if self.save:
-                        plt.imshow(point.a.astype("uint8"), cmap="gray")
-                        plt.title(
-                            f"counterfactual - black box predicted class: {point.blackboxpd.predicted_class}"
-                        )
-                        plt.savefig(data_path / f"counter_{i}.png", dpi=150)
+            # discriminator. Therefore might be that point is None.
+
+            # Also it might be that the point is not a counterfactual (classifies the same). Don't continue with that.
+            if point and point.blackboxpd != self.target.blackboxpd:
+                results.append(point)
+                if self.save:
+                    plt.imshow(point.a.astype("uint8"), cmap="gray")
+                    plt.title(
+                        f"counterfactual - black box predicted class: {point.blackboxpd.predicted_class}"
+                    )
+                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} counterfactuals.")
         return results
