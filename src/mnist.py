@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 if __name__ == "__main__":
     try:
         dataset_option = sys.argv[1]
-        bb_option = sys.argv[2]
+        bb_option = sys.argv[2].upper()
         run_options = sys.argv[3]
     except IndexError:
         raise Exception(
