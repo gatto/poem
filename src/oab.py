@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 import sklearn_json as skljson
-from attrs import define, field, validators
+from attrs import Factory, define, field, validators
 from mnist import (
     get_autoencoder,
     get_black_box,
@@ -859,7 +859,13 @@ class Explainer:
                     plt.savefig(data_path / f"counter_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} counterfactuals.")
-        return results
+
+        # the following if is for the library attrs. We don't want to return an empty list as
+        # a default value of a class attribute. We want to use attrs factories. See attrs website.
+        if results:
+            return results
+        else:
+            return Factory(list)
 
     # @eps_factuals.default
     def _eps_factuals_default(self):
@@ -899,6 +905,7 @@ class Explainer:
         print(f"{self.howmany=}")
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
+            print("point?")
             if point:
                 print(f"yes point {factual}, {closest=}")
                 # check 1f (factual): if the point is classified same as class of testpoint
@@ -930,17 +937,26 @@ class Explainer:
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} factuals.")
-        return results
+        if results:
+            return results
+        else:
+            return Factory(list)
 
     def more_factuals(self) -> list[ImageExplanation]:
         more = self._factuals_default()
-        self.factuals = self.factuals.extend(more)
-        return more
+        if more:
+            self.factuals = self.factuals.extend(more)
+            return more
+        else:
+            return Factory(list)
 
     def more_counterfactuals(self) -> list[ImageExplanation]:
         more = self._counterfactuals_default(more=True)
-        self.counterfactuals = self.counterfactuals.extend(more)
-        return more
+        if more:
+            self.counterfactuals = self.counterfactuals.extend(more)
+            return more
+        else:
+            return Factory(list)
 
     def keys(self):
         return [x for x in dir(self) if x[:1] != "_"]
