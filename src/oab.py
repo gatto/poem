@@ -5,7 +5,7 @@ logging.basicConfig(
     filemode="a",
     format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
-    level=logging.INFO,
+    level=logging.WARN,
 )
 
 import copy
@@ -191,6 +191,15 @@ class Blackbox:
                 )
                 return results
                 # the original usage is: Y_pred = bb_predict(X_test)
+            case "emnist":
+                use_rgb = False
+                black_box_filename = f"./data/models/emnist_{self.bb_type}"
+                results = dict()
+                results["predict"], results["predict_proba"] = get_black_box(
+                    self.bb_type, black_box_filename, use_rgb
+                )
+                return results
+
             case "custom":
                 raise NotImplementedError
 
@@ -269,7 +278,7 @@ class Domain:
 
     @dataset_name.validator
     def _dataset_validator(self, attribute, value):
-        possible_datasets = {"mnist", "fashion", "custom"}
+        possible_datasets = {"mnist", "fashion", "emnist", "custom"}
         if value not in possible_datasets:
             raise ValueError(f"Dataset {value} not implemented.")
 
@@ -280,6 +289,8 @@ class Domain:
                 possible_bb = {"RF", "DNN"}
             case "fashion":
                 possible_bb = {"RF", "DNN"}
+            case "emnist":
+                possible_bb = {"DNN"}
             case "custom":
                 raise NotImplementedError
             case _:
@@ -321,6 +332,20 @@ class Domain:
                 results[
                     "path_aemodels"
                 ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            case "emnist":
+                results["ae_name"] = "aae"
+                match self.bb_type:
+                    case "RF":
+                        raise NotImplementedError
+                    case "DNN":
+                        pass
+                    case _:
+                        raise ValueError
+                results["dataset"] = "emnist"
+                results["shape"] = (28, 28, 3)
+                results[
+                    "path_aemodels"
+                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
             case "custom":
                 raise NotImplementedError
             case _:
@@ -334,6 +359,8 @@ class Domain:
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "fashion":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+            case "emnist":
+                return [str(x) for x in range(1, 27)]
             case "custom":
                 raise NotImplementedError
             case _:
@@ -348,6 +375,8 @@ class Domain:
             case "mnist":
                 pass
             case "fashion":
+                pass
+            case "emnist":
                 pass
             case "custom":
                 raise NotImplementedError
@@ -364,6 +393,8 @@ class Domain:
             case "mnist":
                 pass
             case "fashion":
+                pass
+            case "emnist":
                 pass
             case "custom":
                 raise NotImplementedError
@@ -1156,7 +1187,7 @@ class Connection:
 
     @dataset_name.validator
     def _dataset_name_validator(self, attribute, value):
-        possible_datasets = {"mnist", "fashion", "custom"}
+        possible_datasets = {"mnist", "fashion", "emnist", "custom"}
         if value not in possible_datasets:
             raise NotImplementedError(f"Dataset {value} not implemented.")
 
@@ -1167,6 +1198,8 @@ class Connection:
                 possible_bb = {"RF", "DNN"}
             case "fashion":
                 possible_bb = {"RF", "DNN"}
+            case "emnist":
+                possible_bb = {"DNN"}
             case "custom":
                 raise NotImplementedError
             case _:
@@ -1202,6 +1235,14 @@ class Connection:
                         data_table_path = data_path / "fashion-rf.db"
                     case "DNN":
                         data_table_path = data_path / "fashion-dnn.db"
+                    case _:
+                        raise NotImplementedError
+            case "emnist":
+                match self.bb_type:
+                    case "RF":
+                        raise NotImplementedError
+                    case "DNN":
+                        data_table_path = data_path / "emnist-dnn.db"
                     case _:
                         raise NotImplementedError
             case "custom":
@@ -1269,7 +1310,7 @@ if __name__ == "__main__":
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
-            (dataset) mnist
+            (dataset) mnist | fashion | emnist
             (blackbox type) rf | dnn
             and then:
             (testing) delete-all, run-tests, test-train <how many to load>,
@@ -1286,6 +1327,8 @@ if __name__ == "__main__":
         case "mnist":
             pass
         case "fashion":
+            pass
+        case "emnist":
             pass
         case _:
             raise NotImplementedError
