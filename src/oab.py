@@ -1014,7 +1014,7 @@ class Explainer:
             for pixel in range(shape[1]):
                 my_differences = []
                 for factual in self.factuals:
-                    factual_relevant_pixel = factual[row, pixel, channel]
+                    factual_relevant_pixel = factual.a[row, pixel, channel]
                     testpoint_relevant_pixel = self.testpoint.a[row, pixel, channel]
                     my_differences.append(
                         testpoint_relevant_pixel - factual_relevant_pixel
