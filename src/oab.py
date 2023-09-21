@@ -992,6 +992,42 @@ class Explainer:
     def keys(self):
         return [x for x in dir(self) if x[:1] != "_"]
 
+    def get_map(self) -> np.ndarray:
+        """
+        Relevant objects for this:
+        - self.testpoint.a: TestPoint.a
+        - self.factuals: list[ImageExplanation]
+
+        The structure of .a:
+        - .a[0]: np.ndarray([[0,0,0], [0,0,0]…]) the shape is: (28, 3)
+        - .a[0, 0]: array([0, 0, 0], dtype=uint8) the shape is: (3,)
+
+        THIS ONLY WORKS FOR GRAYSCALE. (-> for channel in range(shape[2]):)
+        """
+        if True:  # if grayscale
+            channel = 0
+        shape = self.testpoint.domain.metadata["shape"]
+        # shape == (28, 28, 3) for mnist
+        result = np.zeros(shape, dtype=int)
+
+        for row in range(shape[0]):
+            for pixel in range(shape[1]):
+                my_differences = []
+                for factual in self.factuals:
+                    factual_relevant_pixel = factual[row, pixel, channel]
+                    testpoint_relevant_pixel = self.testpoint.a[row, pixel, channel]
+                    my_differences.append(
+                        testpoint_relevant_pixel - factual_relevant_pixel
+                    )
+
+                # generation of pixel
+                my_pixel = np.median(my_differences)
+                print(my_pixel)
+                result[row, pixel] = np.asarray((my_pixel, my_pixel, my_pixel))
+                # this bc of how grayscale is represented
+
+        return result
+
     @classmethod
     def from_array(
         cls, a: np.ndarray, domain: Domain, howmany: int = 3, save: bool = False
