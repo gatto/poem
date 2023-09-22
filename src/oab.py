@@ -402,14 +402,21 @@ class Domain:
                 raise ValueError
         return Blackbox(dataset_name=self.dataset_name, bb_type=self.bb_type)
 
-    def load(self):
+    def load(self, small=False):
         logging.info(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
         print(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
-        self.explanation_base = load_all(self)
+        if small:
+            for i in range(1000):
+                try:
+                    self.explanation_base.append(load(self, i))
+                except TypeError:
+                    self.explanation_base = [load(self, i)]
+        else:
+            self.explanation_base = load_all(self)
         logging.info(f"loaded {len(self.explanation_base)} in explanation base")
         print(f"loaded {len(self.explanation_base)} in explanation base")
 
@@ -1002,30 +1009,32 @@ class Explainer:
         - .a[0]: np.ndarray([[0,0,0], [0,0,0]…]) the shape is: (28, 3)
         - .a[0, 0]: array([0, 0, 0], dtype=uint8) the shape is: (3,)
 
-        THIS ONLY WORKS FOR GRAYSCALE. (-> for channel in range(shape[2]):)
+        ** This only implemented for grayscale. **
+        for color images: how to do pixel-by-pixel difference???
+        (one idea -> for channel in range(shape[2]):)
         """
-        if True:  # if grayscale
+        grayscale = True
+        if grayscale:
             channel = 0
+        else:
+            raise NotImplementedError
+
         shape = self.testpoint.domain.metadata["shape"]
         # shape == (28, 28, 3) for mnist
-        result = np.zeros(shape, dtype=int)
+        result = np.zeros(shape, dtype="uint8")
 
         for row in range(shape[0]):
             for pixel in range(shape[1]):
                 my_differences = []
                 for factual in self.factuals:
-                    factual_relevant_pixel = factual.a[row, pixel, channel]
-                    testpoint_relevant_pixel = self.testpoint.a[row, pixel, channel]
                     my_differences.append(
-                        testpoint_relevant_pixel - factual_relevant_pixel
+                        self.testpoint.a[row, pixel, channel]
+                        - factual.a[row, pixel, channel]
                     )
 
                 # generation of pixel
-                my_pixel = np.median(my_differences)
-                print(my_pixel)
-                result[row, pixel] = np.asarray((my_pixel, my_pixel, my_pixel))
-                # this bc of how grayscale is represented
-
+                result[row, pixel] = np.median(my_differences)
+                print(type(result[row, pixel]))
         return result
 
     @classmethod
