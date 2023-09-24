@@ -1033,7 +1033,8 @@ class Explainer:
                     )
 
                 # generation of pixel
-                result[row, pixel] = np.median(my_differences)
+                value = np.median(my_differences)
+                result[row, pixel] = value
                 print(type(result[row, pixel]))
         return result
 
