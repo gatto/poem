@@ -1034,8 +1034,9 @@ class Explainer:
 
                 # generation of pixel
                 value = np.median(my_differences)
-                print(type(value), len(value))
-                result[row, pixel] = value[0]
+                if isinstance(value, np.ndarray):
+                    value = value[0]
+                result[row, pixel] = value
         return result
 
     @classmethod
