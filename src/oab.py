@@ -1019,8 +1019,8 @@ class Explainer:
         else:
             raise NotImplementedError
 
-        shape = self.testpoint.domain.metadata["shape"]
-        # shape == (28, 28, 3) for mnist
+        # shape = self.testpoint.domain.metadata["shape"]
+        shape = (28, 28)  # for mnist and fashion
         result = np.zeros(shape, dtype="uint8")
 
         for row in range(shape[0]):
@@ -1035,6 +1035,7 @@ class Explainer:
                 # generation of pixel
                 value = np.median(my_differences)
                 if isinstance(value, np.ndarray):
+                    print("strange")
                     value = value[0]
                 result[row, pixel] = value
         return result
