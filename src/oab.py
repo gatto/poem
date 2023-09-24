@@ -1021,7 +1021,7 @@ class Explainer:
 
         # shape = self.testpoint.domain.metadata["shape"]
         shape = (28, 28)  # for mnist and fashion
-        result = np.zeros(shape, dtype="uint8")
+        result = np.zeros(shape, dtype="float32")
 
         for row in range(shape[0]):
             for pixel in range(shape[1]):
