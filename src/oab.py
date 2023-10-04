@@ -1094,21 +1094,17 @@ def knn(point: TestPoint) -> TreePoint:
     # indexes_by_distance is a tuple(distance, index of record at that distance)
     indexes_by_distance: tuple(float, int) = ranking_knn(target=point, my_points=points)
 
-    for target_index in indexes_by_distance:
+    for i, target_index in enumerate(indexes_by_distance):
         target_index = target_index[1]
-        # this while loop's purpose is to continue looking for 1NN sample points
-        # if the first sample point result `points[index]` is discarded because TestPoint
-        # is not in the sampled point's margins
 
-        # check 1: the margins of the latent space (poliedro check)
+        # check 1: the margins of the latent space
         if point in points[target_index].latent:
-            # if it's in the margins
             logging.info("checked margins")
             pass  # go to next check
         else:
             # otherwise, go to next point
-            logging.warning("popped a point bc of margins")
-            continue  # start over
+            logging.warning(f"in run {i}: margins")
+            continue
 
         # check 2: if bb predicted class match of testpoint and selected treepoint
         if point.blackboxpd == points[target_index].blackboxpd:
@@ -1116,20 +1112,19 @@ def knn(point: TestPoint) -> TreePoint:
             pass  # go to next check
         else:
             # otherwise, go to next point
-            logging.warning("popped a point bc of BlackboxPD mismatch")
-            continue  # start over
+            logging.warning(f"in run {i}: BlackboxPD mismatch")
+            continue
 
         # check 3: if testpoint doesn't satisfy target's positive rule
         if point in points[target_index].latentdt.rule:
             logging.info("checked positive rule")
 
-            # we done
-            # I return the entire TreePoint
+            # we done - I return the entire TreePoint
             return points[target_index]
         else:
-            # otherwise, pop that point (don't need it) and start again
-            logging.warning("popped a point bc of positive rule failure")
-            continue  # start over
+            # otherwise, go to next point
+            logging.warning(f"in run {i}: positive rule failure")
+            continue
 
     raise RuntimeError("We've run out of TreePoints during knn")
 
