@@ -33,9 +33,9 @@ from rich import print
 from rich.console import Console
 from rich.progress import track
 from rich.table import Table
+from skimage import io
 from sklearn.neighbors import NearestNeighbors
 
-## CODE EXECUTED BEFORE LIBRARY DEFINITION
 """
 Places to update when adding something to the sql db:
 - data_table_structure
@@ -653,6 +653,13 @@ class TestPoint:
     blackboxpd: BlackboxPD = field(init=False)
     latent: Latent = field(init=False)
 
+    @a.validator
+    def _a_validator(self, attribute, value):
+        if value.shape != self.domain.metadata["shape"]:
+            raise ValueError(
+                f"The shape of the array does not match the domain's expected shape. {value.shape=} and {self.domain.metadata['shape']=}"
+            )
+
     @blackboxpd.default
     def _blackboxpd_default(self):
         return BlackboxPD(predicted_class=self.domain.blackbox.predict(self.a))
@@ -682,9 +689,6 @@ class TestPoint:
         Latent.a[2] == 5.0 + eps * 2
         then Latent.a[2] == 5.0 + eps * 3
         up to 40 tries. If still fails discrim, then fail and return None
-
-        TODO: eps possibly belonging to Domain? Must calculate it feature
-        by feature or possible to have one eps for entire domain?
         """
 
         debug_results = ""
@@ -724,8 +728,6 @@ class TestPoint:
                 f"we would have runtimerrror here in .marginal_apply() with {debug_results}"
             )
         return None
-
-    # TODO: fare notebook con 10 immagini per record
 
     def perturb(
         self, complexrule: ComplexRule, eps=0.04, old_method=False
@@ -1049,7 +1051,7 @@ class Explainer:
         intended usage:
 
         from oab import Explainer
-        explanation = Explainer.from_array(a:np.ndarray)
+        explanation = Explainer.from_array(a:np.ndarray, domain:oab.Domain)
         """
 
         return cls(
@@ -1063,21 +1065,15 @@ class Explainer:
         cls, my_path: Path, domain: Domain, howmany: int = 3, save: bool = False
     ):
         """
-        This is the main method that should be exposed externally.
+        This is another method that should be exposed externally.
         intended usage:
 
         from oab import Explainer
-        explanation = Explainer.from_file(<path_to_image>)
-
-        the format of the Explainer object is still to be defined (TODO)
-
-        TODO: structure of this method is
-        1. create a TestPoint from file in my_path
-        2. explain somehow
-        3. generate Explainer which will contain TestPoint
+        explanation = Explainer.from_file(my_path:pathlib.Path <path_to_image>, domain:oab.Domain)
         """
 
-        return cls.from_array("xxx")
+        my_array = io.imread(my_path)
+        return cls.from_array(a=my_array, domain=domain, howmany=howmany, save=save)
 
 
 def knn(point: TestPoint) -> TreePoint:
