@@ -42,6 +42,7 @@ from skimage import feature, transform
 from skimage.color import gray2rgb
 from sklearn.metrics import accuracy_score, classification_report
 from tensorflow.keras.datasets import fashion_mnist, mnist
+import tensorflow_datasets as tfds
 
 # parameters
 ae_name = "aae"
@@ -104,65 +105,47 @@ def get_data(dataset: str = "mnist") -> tuple:
             (X_train, Y_train), (X_test, Y_test) = mnist.load_data(path="mnist.npz")
             X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
-
-            # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-            indexes = random.sample(
-                range(X_train.shape[0]), X_train.shape[0] // 6
-            )  # g get a list of 1/6 indexes of the len of X_train
-
-            for x in track(
-                range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
-            ):
-                if x in indexes:
-                    indexing_condition.append(True)
-                else:
-                    indexing_condition.append(False)
-            assert len(indexing_condition) == X_train.shape[0]
-
-            logging.info(
-                f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
-            )
-
-            indexing_condition = np.array(indexing_condition)
-
-            X_tree = X_train[indexing_condition]
-            Y_tree = Y_train[indexing_condition]
-
-            X_train = X_train[~indexing_condition]
-            Y_train = Y_train[~indexing_condition]
         case "fashion":
             (X_train, Y_train), (X_test, Y_test) = fashion_mnist.load_data()
             X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
-            # use_rgb = False
-
-            # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-            indexes = random.sample(
-                range(X_train.shape[0]), X_train.shape[0] // 6
-            )  # g get a list of 1/6 indexes of the len of X_train
-
-            for x in track(
-                range(X_train.shape[0]), description="Sampling X_tree, Y_tree"
-            ):
-                if x in indexes:
-                    indexing_condition.append(True)
-                else:
-                    indexing_condition.append(False)
-            assert len(indexing_condition) == X_train.shape[0]
-
-            logging.info(
-                f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
+        case "emnist":
+            ds_train = tfds.load(
+                "emnist", split="train", batch_size=-1, as_supervised=True
+            )
+            ds_test = tfds.load(
+                "emnist", split="test", batch_size=-1, as_supervised=True
             )
 
-            indexing_condition = np.array(indexing_condition)
+            (X_train, Y_train)
+            (X_test, Y_test)
 
-            X_tree = X_train[indexing_condition]
-            Y_tree = Y_train[indexing_condition]
-
-            X_train = X_train[~indexing_condition]
-            Y_train = Y_train[~indexing_condition]
+            X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
+            X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
         case _:
             raise NotImplementedError
+
+    # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+    indexes = random.sample(
+        range(X_train.shape[0]), X_train.shape[0] // 6
+    )  # g get a list of 1/6 indexes of the len of X_train
+    for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
+        if x in indexes:
+            indexing_condition.append(True)
+        else:
+            indexing_condition.append(False)
+    assert len(indexing_condition) == X_train.shape[0]
+
+    logging.info(
+        f"We have False number of train records and True number of tree records: {Counter(indexing_condition)}"
+    )
+    indexing_condition = np.array(indexing_condition)
+
+    X_tree = X_train[indexing_condition]
+    Y_tree = Y_train[indexing_condition]
+
+    X_train = X_train[~indexing_condition]
+    Y_train = Y_train[~indexing_condition]
 
     return (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree)
 
@@ -187,6 +170,14 @@ def get_dataset_metadata(dataset: str) -> dict:
                 "path_aemodels"
             ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
             results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        case "emnist":
+            results["dataset"] = "emnist"
+            results["use_rgb"] = False
+
+            results[
+                "path_aemodels"
+            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            results["classes"] = [str(x) for x in range(1, 27)]
         case _:
             raise NotImplementedError
 

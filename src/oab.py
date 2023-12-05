@@ -33,6 +33,7 @@ from rich import print
 from rich.console import Console
 from rich.progress import track
 from rich.table import Table
+from scipy.stats import truncnorm
 from skimage import io
 from sklearn.neighbors import NearestNeighbors
 
@@ -745,45 +746,21 @@ class TestPoint:
         for i in range(40):
             my_generated_record = []
             for feature_id in range(self.latent.a.shape[0]):
-                # this is the perturbation step, feature by feature
-                generated = False
-                failures_counter = 0
-                while not generated:
-                    # OLD_METHOD:
-                    # take value of feature_id in testpoint
-                    # perturb it with random.uniform gives variations on the eps value,
-                    # random.randrange returns -1 or 1 randomly so the effect
-                    # is to either subtract or add eps to value
-                    # NEW METHOD:
-                    # generate any random value out of a gaussian. We rely solely on
-                    # the neighbour-distance ranking to get a link with our original testpoint
-                    if old_method:
-                        generated_value = self.latent.a[
-                            feature_id
-                        ] + eps * random.uniform(1, 10) * random.randrange(-1, 2, 2)
-                    else:
-                        generated_value = random.gauss(mu=0.0, sigma=1.0)
-
-                    # validate it according to ComplexRule
-                    rules_satisfied = 0
-                    try:
-                        # try because there might not be any condition insisting on any specific feature
+                # Generate any random value out of a gaussian. We rely solely on
+                # the neighbour-distance ranking to get a link with our original testpoint
+                try:
+                    # try because there might not be any condition insisting on any specific feature
+                    if complexrule.conditions[feature_id]:
+                        a = 200
+                        b = 200
                         for rule in complexrule.conditions[feature_id]:
-                            if rule.respects_rule(generated_value):
-                                rules_satisfied += 1
-                            else:
-                                pass
-                        if rules_satisfied == len(complexrule.conditions[feature_id]):
-                            generated = True
-                        else:
-                            failures_counter += 1
-                    except KeyError:
-                        generated = True
-                if failures_counter > 0:
-                    logging.warning(
-                        f"{failures_counter} failures for feature {feature_id}"
-                    )
-
+                            if rule.operator in geq:
+                                a = rule.value
+                            elif rule.operator not in geq:
+                                b = rule.value
+                        generated_value = truncnorm.rvs(a, b)
+                except KeyError:
+                    generated_value = random.gauss(mu=0.0, sigma=1.0)
                 my_generated_record.append(generated_value)
 
             new_point = ImageExplanation(
@@ -1085,8 +1062,6 @@ def knn(point: TestPoint) -> TreePoint:
 
     points: list[TreePoint] = point.domain.explanation_base
     logging.info(f"loaded all {len(points)} amount of points in explanation base")
-    latent_arrays: list[np.ndarray] = [point.latent.a for point in points]
-    logging.info("done latent_arrays")
     # indexes_by_distance is a tuple(distance, index of record at that distance)
     indexes_by_distance: tuple(float, int) = ranking_knn(target=point, my_points=points)
 
@@ -1279,7 +1254,7 @@ class Connection:
             case "emnist":
                 match self.bb_type:
                     case "RF":
-                        raise NotImplementedError
+                        data_table_path = data_path / "emnist-rf.db"
                     case "DNN":
                         data_table_path = data_path / "emnist-dnn.db"
                     case _:
