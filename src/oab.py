@@ -34,7 +34,6 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 from scipy.stats import truncnorm
-from skimage import io
 from sklearn.neighbors import NearestNeighbors
 
 """
