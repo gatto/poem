@@ -18,7 +18,7 @@ if __name__ == "__main__":
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
-            mnist | fashion (dataset)
+            mnist | fashion | emnist (dataset)
             rf | dnn (blackbox model)
             understanding | delete-all | train-aae | train-bb | explain <index_image_to_explain>"""
         )
@@ -119,6 +119,11 @@ def get_data(dataset: str = "mnist") -> tuple:
 
             (X_train, Y_train) = ds_train[0], ds_train[1]
             (X_test, Y_test) = ds_test[0], ds_test[1]
+
+            print(type(X_train))
+            print(type(Y_train))
+            print(type(X_test))
+            print(type(Y_test))
 
             X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
