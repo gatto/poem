@@ -120,11 +120,6 @@ def get_data(dataset: str = "mnist") -> tuple:
             (X_train, Y_train) = tfds.as_numpy(ds_train[0]), tfds.as_numpy(ds_train[1])
             (X_test, Y_test) = tfds.as_numpy(ds_test[0]), tfds.as_numpy(ds_test[1])
 
-            print(type(X_train))
-            print(type(Y_train))
-            print(type(X_test))
-            print(type(Y_test))
-
             X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
         case _:
@@ -462,7 +457,11 @@ if __name__ == "__main__":
 
         # check what I've already done
         hey = {int(path.stem) for path in explanation_path.glob("*.pickle")}
-        max_i = max(hey)
+        try:
+            max_i = max(hey)
+        except ValueError:
+            # when we start with explanation for a first time for any given dataset
+            max_i = -1
 
         (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = get_data()
 
