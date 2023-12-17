@@ -467,7 +467,7 @@ if __name__ == "__main__":
 
         # do some more
         for i in range(max_i + 1, max_i + 1 + how_many):
-            _ = run_explain(i, X_tree, Y_tree)
+            _ = run_explain(i, X_tree, Y_tree, dataset_option, bb_option)
             my_counter += 1
             if my_counter % 10 == 0:
                 gc.collect()
