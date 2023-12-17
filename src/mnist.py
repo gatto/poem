@@ -177,7 +177,7 @@ def get_dataset_metadata(dataset: str) -> dict:
             results[
                 "path_aemodels"
             ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-            results["classes"] = [str(x) for x in range(1, 27)]
+            results["classes"] = [str(x) for x in range(0, 62)]
         case _:
             raise NotImplementedError
 
