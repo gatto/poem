@@ -117,10 +117,8 @@ def get_data(dataset: str = "mnist") -> tuple:
                 "emnist", split="test", batch_size=-1, as_supervised=True
             )
 
-            (X_train, Y_train) = tf.make_ndarray(ds_train[0]), tf.make_ndarray(
-                ds_train[1]
-            )
-            (X_test, Y_test) = tf.make_ndarray(ds_test[0]), tf.make_ndarray(ds_test[1])
+            (X_train, Y_train) = tfds.as_numpy(ds_train[0]), tfds.as_numpy(ds_train[1])
+            (X_test, Y_test) = tfds.as_numpy(ds_test[0]), tfds.as_numpy(ds_test[1])
 
             print(type(X_train))
             print(type(Y_train))
