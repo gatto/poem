@@ -151,6 +151,8 @@ def get_data(dataset: str = "mnist") -> tuple:
 
 
 def get_dataset_metadata(dataset: str) -> dict:
+    # g: be wary that ilore only works with class values starting from 0.
+    # otherwise fails cons = class_values[int(dt_outcome)]
     results = dict()
     results["ae_name"] = "aae"
     match dataset:
