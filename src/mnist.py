@@ -43,6 +43,7 @@ from skimage.color import gray2rgb
 from sklearn.metrics import accuracy_score, classification_report
 from tensorflow.keras.datasets import fashion_mnist, mnist
 import tensorflow_datasets as tfds
+from emnist import extract_training_samples, extract_test_samples
 
 # parameters
 ae_name = "aae"
@@ -110,18 +111,10 @@ def get_data(dataset: str = "mnist") -> tuple:
             X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
         case "emnist":
-            ds_train = tfds.load(
-                "emnist", split="train", batch_size=-1, as_supervised=True
-            )
-            ds_test = tfds.load(
-                "emnist", split="test", batch_size=-1, as_supervised=True
-            )
-
-            (X_train, Y_train) = tfds.as_numpy(ds_train[0]), tfds.as_numpy(ds_train[1])
-            (X_test, Y_test) = tfds.as_numpy(ds_test[0]), tfds.as_numpy(ds_test[1])
-
-            X_train = np.stack([gray2rgb(x) for x in X_train.reshape((-1, 28, 28))], 0)
-            X_test = np.stack([gray2rgb(x) for x in X_test.reshape((-1, 28, 28))], 0)
+            X_train, Y_train = extract_training_samples("letters")
+            X_test, Y_test = extract_test_samples("letters")
+            X_train = np.stack([gray2rgb(x) for x in X_train], 0)
+            X_test = np.stack([gray2rgb(x) for x in X_test], 0)
         case _:
             raise NotImplementedError
 
