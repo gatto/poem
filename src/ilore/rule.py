@@ -145,6 +145,7 @@ def get_rule(x, dt, feature_names, class_name, class_values, numeric_columns):
     logging.warning(f"{dt_outcome=}")
     logging.warning(f"{type(dt_outcome)}")
     logging.warning("10")
+    # g: the following is my bugfix
     cons = class_values[class_values.index(str(dt_outcome))]
     logging.warning("11")
     premises = compact_premises(premises)
@@ -286,7 +287,8 @@ def get_counterfactual_rules(
             img_xc = autoencoder.decode(xc.reshape(1, -1))[0]
 
             bb_outcomec = bb_predict(np.array([img_xc]))[0]
-            bb_outcomec = class_values[bb_outcomec]
+            # g: the following is my bugfix
+            bb_outcomec = class_values[class_values.index(str(bb_outcomec))]
             dt_outcomec = crule.cons
             if bb_outcomec == dt_outcomec:
                 cleaned_crules.append(crule)
