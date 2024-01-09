@@ -141,10 +141,10 @@ def get_rule(x, dt, feature_names, class_name, class_values, numeric_columns):
     logging.warning("9")
     dt_outcome = dt.predict(x)[0]
 
-    logging.warning(class_values)
-    logging.warning(dt_outcome)
+    logging.warning(f"{class_values=}")
+    logging.warning(f"{dt_outcome=}")
     logging.warning("10")
-    cons = class_values[int(dt_outcome)]
+    cons = class_values[class_values.index(dt_outcome)]
     logging.warning("11")
     premises = compact_premises(premises)
     logging.warning("12")

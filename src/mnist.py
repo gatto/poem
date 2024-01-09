@@ -115,9 +115,6 @@ def get_data(dataset: str = "mnist") -> tuple:
             X_test, Y_test = extract_test_samples("letters")
             X_train = np.stack([gray2rgb(x) for x in X_train], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test], 0)
-            # the following bc abele doesn't like classes that don't start from 0
-            Y_train = Y_train - 1
-            Y_test = Y_test - 1
         case _:
             raise NotImplementedError
 
@@ -175,7 +172,7 @@ def get_dataset_metadata(dataset: str) -> dict:
             results[
                 "path_aemodels"
             ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-            results["classes"] = [str(x) for x in range(0, 26)]
+            results["classes"] = [str(x) for x in range(1, 27)]
         case _:
             raise NotImplementedError
 
