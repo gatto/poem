@@ -144,7 +144,13 @@ def get_rule(x, dt, feature_names, class_name, class_values, numeric_columns):
     logging.warning(class_values)
     logging.warning(dt_outcome)
     logging.warning("10")
-    cons = class_values[int(dt_outcome)]
+    if len(class_values) == 26:
+        # we assume that emnist is the only dataset with 26 class values.
+        # the issue here is that otherwise this when predicts class value '26'
+        # it tries to access the index [26] but there is none. Max index is 25.
+        cons = class_values[int(dt_outcome) - 1]
+    else:
+        cons = class_values[int(dt_outcome)]
     logging.warning("11")
     premises = compact_premises(premises)
     logging.warning("12")
