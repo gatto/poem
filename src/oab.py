@@ -750,6 +750,7 @@ class TestPoint:
                 try:
                     # try because there might not be any condition insisting on any specific feature
                     if complexrule.conditions[feature_id]:
+                        print(f"{complexrule=}")
                         a = 200
                         b = 200
                         for rule in complexrule.conditions[feature_id]:
