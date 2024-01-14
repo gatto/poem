@@ -750,7 +750,6 @@ class TestPoint:
                 try:
                     # try because there might not be any condition insisting on any specific feature
                     if complexrule.conditions[feature_id]:
-                        print(f"{complexrule=}")
                         a = -200
                         b = 200
                         for rule in complexrule.conditions[feature_id]:
@@ -758,7 +757,6 @@ class TestPoint:
                                 a = rule.value
                             elif rule.operator not in geq:
                                 b = rule.value
-                            print(f"{a=}, {b=}")
                         generated_value = truncnorm.rvs(a, b)
                 except KeyError:
                     generated_value = random.gauss(mu=0.0, sigma=1.0)
@@ -880,10 +878,7 @@ class Explainer:
 
         # the following if is for the library attrs. We don't want to return an empty list as
         # a default value of a class attribute. We want to use attrs factories. See attrs website.
-        if results:
-            return results
-        else:
-            return Factory(list)
+        return results
 
     # @eps_factuals.default
     def _eps_factuals_default(self):
