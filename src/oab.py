@@ -757,6 +757,7 @@ class TestPoint:
                                 a = rule.value
                             elif rule.operator not in geq:
                                 b = rule.value
+                            print(f"{a=}, {b=}")
                         generated_value = truncnorm.rvs(a, b)
                 except KeyError:
                     generated_value = random.gauss(mu=0.0, sigma=1.0)
