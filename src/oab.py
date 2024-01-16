@@ -838,6 +838,7 @@ class Explainer:
     howmany: int = field(default=3)
     save: bool = field(default=False)
     target: TreePoint = field(init=False)
+    critical_count: int = field(default=0)
     counterfactuals: list[ImageExplanation] = field(init=False)
     # eps_factuals: list[ImageExplanation] = field(init=False)
     factuals: list[ImageExplanation] = field(init=False)
@@ -932,10 +933,13 @@ class Explainer:
         )
         print(f"{len(results)=}")
         # take the last how_many points, last because I'd like the farthest points
-        if not closest:
-            ranking = ranking_knn(self.target, results)[-self.howmany :]
-        elif closest:
-            ranking = ranking_knn(self.target, results)[: self.howmany]
+        if results:
+            if not closest:
+                ranking = ranking_knn(self.target, results)[-self.howmany :]
+            elif closest:
+                ranking = ranking_knn(self.target, results)[: self.howmany]
+        else:
+            self.critical_count += 1  # could not generate even 1 factual
 
         # take the index in the tuple(distance, index)
         indexes_to_take = [x[1] for x in ranking]
@@ -950,10 +954,9 @@ class Explainer:
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} factuals.")
-        if results:
-            return results
-        else:
-            return Factory(list)
+        if self.critical_count:
+            logging.error(f"We failed {self.critical_count} times?")
+        return results
 
     def more_factuals(self) -> list[ImageExplanation]:
         more = self._factuals_default()
