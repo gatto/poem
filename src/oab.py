@@ -5,7 +5,7 @@ logging.basicConfig(
     filemode="a",
     format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
-    level=logging.WARN,
+    level=logging.ERROR,
 )
 
 import copy
