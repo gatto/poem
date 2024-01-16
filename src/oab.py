@@ -290,7 +290,7 @@ class Domain:
             case "fashion":
                 possible_bb = {"RF", "DNN"}
             case "emnist":
-                possible_bb = {"DNN"}
+                possible_bb = {"RF", "DNN"}
             case "custom":
                 raise NotImplementedError
             case _:
@@ -336,7 +336,7 @@ class Domain:
                 results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
-                        raise NotImplementedError
+                        pass
                     case "DNN":
                         pass
                     case _:
