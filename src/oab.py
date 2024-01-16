@@ -1,7 +1,7 @@
 import logging
 
 logging.basicConfig(
-    filename="./data/mnist-oab-dnnbug.log",
+    filename="./data/mnist-oab-execution-bugs.log",
     filemode="a",
     format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
@@ -837,6 +837,7 @@ class Explainer:
     testpoint: TestPoint
     howmany: int = field(default=3)
     save: bool = field(default=False)
+    fail: bool = field(default=False)
     target: TreePoint = field(init=False)
     critical_count: int = field(default=0)
     counterfactuals: list[ImageExplanation] = field(init=False)
@@ -850,10 +851,16 @@ class Explainer:
 
     @target.default
     def _target_default(self) -> TreePoint:
-        return knn(self.testpoint)
+        if result := knn(self.testpoint):
+            return result
+        else:
+            logging.error(f"could not get a valid target for {self.testpoint}")
+            self.fail = True
 
     @counterfactuals.default
     def _counterfactuals_default(self, more=False):
+        if self.fail:
+            return None
         logging.info(f"Doing counterfactuals with target point id={self.target.id}")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
@@ -883,6 +890,8 @@ class Explainer:
 
     # @eps_factuals.default
     def _eps_factuals_default(self):
+        if self.fail:
+            return None
         logging.info(f"Doing epsilon-factuals with target point id={self.target.id}")
         results = []
 
@@ -913,6 +922,9 @@ class Explainer:
         For debug purposes or if you have specific needs you can set closest=True
         to return the .howmany **closest** from testpoint.
         """
+        if self.fail:
+            return None
+
         logging.info(f"Doing factuals with target point id={self.target.id}")
         results = []
 
@@ -939,7 +951,9 @@ class Explainer:
             elif closest:
                 ranking = ranking_knn(self.target, results)[: self.howmany]
         else:
-            self.critical_count += 1  # could not generate even 1 factual
+            logging.error(
+                f"could not generate even 1 factual for point {self.testpoint}"
+            )
 
         # take the index in the tuple(distance, index)
         indexes_to_take = [x[1] for x in ranking]
@@ -954,8 +968,6 @@ class Explainer:
                 plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
 
         logging.info(f"I made {len(results)} factuals.")
-        if self.critical_count:
-            logging.error(f"We failed {self.critical_count} times?")
         return results
 
     def more_factuals(self) -> list[ImageExplanation]:
@@ -1096,7 +1108,8 @@ def knn(point: TestPoint) -> TreePoint:
             logging.warning(f"in run {i}: positive rule failure")
             continue
 
-    raise RuntimeError("We've run out of TreePoints during knn")
+    # raise RuntimeError("We've run out of TreePoints during knn")
+    return None
 
 
 def list_all(dataset_name, bb_type) -> list[int]:
