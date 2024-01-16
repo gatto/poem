@@ -807,7 +807,7 @@ def ranking_knn(
     # results[1].shape = (1, n_neighbors) are the indexes
     results = zip(results[0][0], results[1][0])
     results = list(sorted(results))
-    print(f"For debug purposes:\n{results[:5]}")
+    logging.info(f"For debug purposes:\n{results[:5]}")
     return results
 
 
@@ -928,22 +928,22 @@ class Explainer:
         logging.info(f"Doing factuals with target point id={self.target.id}")
         results = []
 
-        print(f"{self.howmany=}")
+        logging.info(f"{self.howmany=}")
         for factual in range(self.howmany * 10):
             point: ImageExplanation = self.testpoint.perturb(self.target.latentdt.rule)
-            print("point?")
+            logging.info("point?")
             if point:
-                print(f"yes point {factual}, {closest=}")
+                logging.info(f"yes point {factual}, {closest=}")
                 # check 1f (factual): if the point is classified same as class of testpoint
-                print(f"{point.blackboxpd=} == {self.target.blackboxpd=}?")
+                logging.info(f"{point.blackboxpd=} == {self.target.blackboxpd=}?")
                 if point.blackboxpd == self.target.blackboxpd:
-                    print("yes")
+                    logging.info("yes")
                     results.append(point)
 
         logging.info(
             f"there are, after checks, {len(results)} points among which to choose {self.howmany}."
         )
-        print(f"{len(results)=}")
+        logging.info(f"{len(results)=}")
         # take the last how_many points, last because I'd like the farthest points
         if results:
             if not closest:
