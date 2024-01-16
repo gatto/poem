@@ -954,6 +954,7 @@ class Explainer:
             logging.error(
                 f"could not generate even 1 factual for point {self.testpoint}"
             )
+            return []
 
         # take the index in the tuple(distance, index)
         indexes_to_take = [x[1] for x in ranking]
@@ -976,7 +977,7 @@ class Explainer:
             self.factuals = self.factuals.extend(more)
             return more
         else:
-            return Factory(list)
+            return []
 
     def more_counterfactuals(self) -> list[ImageExplanation]:
         more = self._counterfactuals_default(more=True)
@@ -984,7 +985,7 @@ class Explainer:
             self.counterfactuals = self.counterfactuals.extend(more)
             return more
         else:
-            return Factory(list)
+            return []
 
     def keys(self):
         return [x for x in dir(self) if x[:1] != "_"]
