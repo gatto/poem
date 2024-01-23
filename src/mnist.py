@@ -94,6 +94,11 @@ def notify_task(current_user: str, good: bool, task: str) -> None:
         pass
 
 
+def save_task_advancement(good: bool, task: str, current: int, total: int):
+    with open("data/progress/progr.txt", "w") as file:
+        file.writelines([good, task, current, total])
+
+
 # # Build Dataset
 def get_data(dataset: str = "mnist") -> tuple:
     # Load X_train, Y_train, X_test, Y_test from mnist keras dataset
@@ -465,6 +470,9 @@ if __name__ == "__main__":
                 gc.collect()
             notify_task(
                 "Fabio", good=True, task=f"Explanation {my_counter} / {how_many}"
+            )
+            save_task_advancement(
+                good=True, task="Explanation", current=my_counter, total=how_many
             )
 
         print(
