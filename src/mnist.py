@@ -95,8 +95,8 @@ def notify_task(current_user: str, good: bool, task: str) -> None:
 
 
 def save_task_advancement(good: bool, task: str, current: int, total: int):
-    with open("data/progress/progr.txt", "w") as file:
-        file.writelines([good, task, current, total])
+    with open("data/progress/progr.pickle", "wb") as f:
+        pickle.dump([good, task, current, total], f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 # # Build Dataset
