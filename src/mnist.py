@@ -31,19 +31,16 @@ import requests
 import tensorflow as tf
 import tg_api_key
 from abele.exputil import get_autoencoder, get_black_box, train_black_box
+from emnist import extract_test_samples, extract_training_samples
 from ilore.ilorem import ILOREM
 from ilore.util import neuclidean
-from keras.preprocessing.image import ImageDataGenerator
 from rich import print
 from rich.console import Console
 from rich.progress import track
 from rich.table import Table
-from skimage import feature, transform
 from skimage.color import gray2rgb
 from sklearn.metrics import accuracy_score, classification_report
 from tensorflow.keras.datasets import fashion_mnist, mnist
-import tensorflow_datasets as tfds
-from emnist import extract_training_samples, extract_test_samples
 
 # parameters
 ae_name = "aae"

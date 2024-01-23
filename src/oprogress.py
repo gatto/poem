@@ -1,7 +1,8 @@
+import pickle
 import time
+
 from rich.progress import Progress
 from watchfiles import watch
-
 
 if __name__ == "__main__":
     with Progress() as progress:
@@ -9,3 +10,6 @@ if __name__ == "__main__":
 
         for changes in watch("data/progress/progr.pickle"):
             print(changes)
+            with open("data/progress/progr.pickle", "rb") as f:
+                tosave = pickle.load(f)
+            print(tosave)
