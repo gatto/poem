@@ -85,7 +85,7 @@ def empty_folder(my_path: str | Path) -> None:
 
 
 def notify_task(current_user: str, good: bool, task: str) -> None:
-    message = f"✅ Done with {task}." if good else f"❌ Bad {task}."
+    message = f"✅ {task}." if good else f"❌ {task}."
     if current_user == "Fabio":
         chat_id = "29375109"
         url = f"https://api.telegram.org/bot{tg_api_key.key}/sendMessage?chat_id={chat_id}&text={message}"
@@ -464,7 +464,7 @@ if __name__ == "__main__":
             if my_counter % 10 == 0:
                 gc.collect()
             notify_task(
-                "Fabio", good=True, task=f"explanation of {my_counter} / {how_many}"
+                "Fabio", good=True, task=f"Explanation {my_counter} / {how_many}"
             )
 
         print(
