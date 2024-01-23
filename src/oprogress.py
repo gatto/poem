@@ -10,14 +10,14 @@ from rich.progress import (
 from watchfiles import watch
 
 if __name__ == "__main__":
-    print("[grey]Ctrl-c to quit")
+    print("[bright_black]Ctrl-C to quit")
     with Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
         TimeRemainingColumn(),
     ) as progress:
-        task1 = progress.add_task("[purple]👀...", total=None)
+        task1 = progress.add_task("👀", total=None)
 
         for _ in watch("data/progress/progr.pickle"):
             with open("data/progress/progr.pickle", "rb") as f:
