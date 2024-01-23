@@ -273,9 +273,6 @@ def run_explain(
     ) as f:
         pickle.dump(tosave, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-    # this is temporary like the return following
-    notify_task("Fabio", good=True, task=f"explanation of {index_tr}")
-
     return tosave
 
 
@@ -466,6 +463,9 @@ if __name__ == "__main__":
             my_counter += 1
             if my_counter % 10 == 0:
                 gc.collect()
+            notify_task(
+                "Fabio", good=True, task=f"explanation of {my_counter} / {how_many}"
+            )
 
         print(
             f"Explained instances from {max_i+1} to {max_i+how_many} amounting to {my_counter} instances."
