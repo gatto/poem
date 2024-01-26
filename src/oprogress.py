@@ -17,6 +17,7 @@ if __name__ == "__main__":
         BarColumn(),
         MofNCompleteColumn(),
     ) as progress:
+        overall = progress.add_task("🧺️", total=5000)
         task1 = progress.add_task("👀", total=None)
         progress.start_task(task1)
 
@@ -24,12 +25,15 @@ if __name__ == "__main__":
             with open("data/progress/progr.pickle", "rb") as f:
                 d = pickle.load(f)
             if d["good"]:
-                progress.update(task1, total=d["total"], completed=d["current"])
                 if first_run:
+                    progress.update(task1, total=d["total"], completed=d["current"])
                     progress.console.print(
                         f"[bright_black]{d['dataset']}, {d['model']} - Ctrl-C to quit"
                     )
                     first_run = False
+                else:
+                    progress.update(task1, completed=d["current"])
+                progress.update(overall, completed=d["current_index"])
             else:
                 progress.stop()
                 print("[red]ERROR.")

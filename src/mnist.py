@@ -92,7 +92,13 @@ def notify_task(current_user: str, good: bool, task: str) -> None:
 
 
 def save_task_advancement(
-    good: bool, task: str, dataset: str, model: str, current: int, total: int
+    good: bool,
+    task: str,
+    dataset: str,
+    model: str,
+    current: int,
+    current_index: int,
+    total: int,
 ):
     with open("data/progress/progr.pickle", "wb") as f:
         pickle.dump(
@@ -103,6 +109,7 @@ def save_task_advancement(
                 "total": total,
                 "dataset": dataset,
                 "model": model,
+                "current_index": current_index,
             },
             f,
             protocol=pickle.HIGHEST_PROTOCOL,
@@ -485,6 +492,7 @@ if __name__ == "__main__":
                 dataset=dataset_option,
                 model=bb_option,
                 current=my_counter,
+                current_index=i,
                 total=how_many,
             )
 
