@@ -11,12 +11,11 @@ from rich.progress import (
 from watchfiles import watch
 
 if __name__ == "__main__":
-    print("[bright_black]Ctrl-C to quit")
+    first_run = True
     with Progress(
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
-        TimeRemainingColumn(),
     ) as progress:
         task1 = progress.add_task("👀", total=None)
         progress.start_task(task1)
@@ -26,6 +25,9 @@ if __name__ == "__main__":
                 d = pickle.load(f)
             if d["good"]:
                 progress.update(task1, total=d["total"], completed=d["current"])
+                if first_run:
+                    progress.console.print(f"[bright_black]{d["dataset"]}, {d["model"]} - Ctrl-C to quit")
+                    first_run = False
             else:
                 progress.stop()
                 print("[red]ERROR.")
