@@ -478,9 +478,7 @@ if __name__ == "__main__":
             my_counter += 1
             if my_counter % 10 == 0:
                 gc.collect()
-            notify_task(
-                "Fabio", good=True, task=f"Explanation {my_counter} / {how_many}"
-            )
+            # notify_task("Fabio", good=True, task=f"Explanation {my_counter} / {how_many}")
             save_task_advancement(
                 good=True,
                 task="Explanation",
