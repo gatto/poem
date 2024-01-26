@@ -26,7 +26,9 @@ if __name__ == "__main__":
             if d["good"]:
                 progress.update(task1, total=d["total"], completed=d["current"])
                 if first_run:
-                    progress.console.print(f"[bright_black]{d["dataset"]}, {d["model"]} - Ctrl-C to quit")
+                    progress.console.print(
+                        f"[bright_black]{d['dataset']}, {d['model']} - Ctrl-C to quit"
+                    )
                     first_run = False
             else:
                 progress.stop()
