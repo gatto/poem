@@ -400,19 +400,22 @@ class Domain:
     def _explanation_base_default(self):
         return load_all_partial(self)
 
-    def load(self, small=False):
+    def load(self, subset: int | bool = False):
+        """
+        Actually loads the full explanation base in memory. This is a heavy operation.
+        Can use subset to load only a part of the explanation base.
+        """
+
         logging.info(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
         print(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
-        if small:
-            for i in range(1000):
-                try:
-                    self.explanation_base.append(load(self, i))
-                except TypeError:
-                    self.explanation_base = [load(self, i)]
+        self.explanation_base = []
+        if subset:
+            for i in range(subset):
+                self.explanation_base.append(load(self, i))
         else:
             self.explanation_base = load_all(self)
         logging.info(f"loaded {len(self.explanation_base)} in explanation base")
@@ -1386,7 +1389,6 @@ def _convert_array(text):
 
 def test():
     my_domain = Domain("mnist", "RF")
-    my_domain.load(small=True)
 
     my_testpoint = TestPoint.generate_test(my_domain)
     exp = Explainer(my_testpoint)
