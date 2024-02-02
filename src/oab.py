@@ -31,7 +31,13 @@ from mnist import (
 )
 from rich import print
 from rich.console import Console
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    track,
+)
 from rich.table import Table
 from scipy.stats import truncnorm
 from sklearn.neighbors import NearestNeighbors
@@ -1185,8 +1191,19 @@ def load_all(domain: Domain) -> list[TreePoint]:
     """
     results = []
 
-    for i in track(list_all(domain.dataset_name, domain.bb_type)):
-        results.append(load(domain, i))
+    all_records_in_explbase = list_all(domain.dataset_name, domain.bb_type)
+
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+    ) as progress:
+        overall = progress.add_task("🧺️", total=len(all_records_in_explbase))
+
+        for i in all_records_in_explbase:
+            results.append(load(domain, i))
+            progress.advance(overall)
+            progress.refresh()
     return results
 
 
