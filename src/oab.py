@@ -315,9 +315,9 @@ class Domain:
                         raise ValueError
                 results["dataset"] = "mnist"
                 results["shape"] = (28, 28, 3)
-                results[
-                    "path_aemodels"
-                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                results["path_aemodels"] = (
+                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                )
             case "fashion":
                 results["ae_name"] = "aae"
                 match self.bb_type:
@@ -329,9 +329,9 @@ class Domain:
                         raise ValueError
                 results["dataset"] = "fashion"
                 results["shape"] = (28, 28, 3)
-                results[
-                    "path_aemodels"
-                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                results["path_aemodels"] = (
+                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                )
             case "emnist":
                 results["ae_name"] = "aae"
                 match self.bb_type:
@@ -343,9 +343,9 @@ class Domain:
                         raise ValueError
                 results["dataset"] = "emnist"
                 results["shape"] = (28, 28, 3)
-                results[
-                    "path_aemodels"
-                ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                results["path_aemodels"] = (
+                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+                )
             case "custom":
                 raise NotImplementedError
             case _:
@@ -428,20 +428,17 @@ class LatentDT:
     """
 
     predicted_class: str = field(converter=str)
-    model: sklearn.tree._classes.DecisionTreeClassifier | None
+    model: sklearn.tree._classes.DecisionTreeClassifier
     fidelity: float
     s_rules: str = field()
     s_counterrules: str = field()
-    model_json: dict | None = field(init=False, repr=False)
+    model_json: dict = field(init=False, repr=False)
     rule: ComplexRule = field(init=False)
     counterrules: list[Condition] = field(init=False)
 
     @model_json.default
     def _model_json_default(self):
-        if self.model:
-            return skljson.to_dict(self.model)
-        else:
-            return None
+        return skljson.to_dict(self.model)
 
     # TODO: remember to correct the rule/counterrules extraction in LatentDT: counterrules may be both simple and ComplexRule
     @rule.default
@@ -1153,9 +1150,7 @@ def load(domain: Domain, id: int | set | list | tuple) -> None | TreePoint:
             row = row[0]  # there is only one row anyway
             assert id == row["id"]
 
-            # the following is to load the latentDT. But do I need it? No
-            # rebuilt_dt = skljson.from_dict(row["DTmodel"])
-            rebuilt_dt = None
+            rebuilt_dt = skljson.from_dict(row["DTmodel"])
 
             return TreePoint(
                 id=id,
