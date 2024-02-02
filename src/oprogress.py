@@ -26,13 +26,11 @@ if __name__ == "__main__":
                 d = pickle.load(f)
             if d["good"]:
                 if first_run:
-                    progress.update(task1, total=d["total"], completed=d["current"])
                     progress.console.print(
                         f"[bright_black]{d['dataset']}, {d['model']} - Ctrl-C to quit"
                     )
                     first_run = False
-                else:
-                    progress.update(task1, completed=d["current"])
+                progress.update(task1, total=d["total"], completed=d["current"])
                 progress.update(overall, completed=d["current_index"])
             else:
                 progress.stop()

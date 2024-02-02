@@ -210,24 +210,25 @@ def train_black_box(
         return -1
 
 
-def get_autoencoder(X, ae_name, dataset, path_aemodels):
+def get_autoencoder(X, ae_name, dataset, path_aemodels, latent_dim=False):
     shape = X[0].shape
     input_dim = np.prod(X[0].shape)
     verbose = False
     store_intermediate = True
 
-    if dataset == "mnist":
-        latent_dim = 4
-    elif dataset == "fashion":
-        latent_dim = 8
-    elif dataset == "cifar10":
-        latent_dim = 16
-    elif dataset == "cifar10bw":
-        latent_dim = 16
-    elif dataset == "emnist":
-        latent_dim = 8
-    else:
-        return
+    if not latent_dim:
+        if dataset == "mnist":
+            latent_dim = 4
+        elif dataset == "fashion":
+            latent_dim = 8
+        elif dataset == "cifar10":
+            latent_dim = 16
+        elif dataset == "cifar10bw":
+            latent_dim = 16
+        elif dataset == "emnist":
+            latent_dim = 8
+        else:
+            return
 
     name = "%s_%s_%d" % (ae_name, dataset, latent_dim)
 

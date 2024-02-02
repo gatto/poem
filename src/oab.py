@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 import sklearn_json as skljson
-from attrs import Factory, define, field, validators
+from attrs import define, field, validators
 from mnist import (
     get_autoencoder,
     get_black_box,
@@ -1314,6 +1314,17 @@ def _convert_array(text):
     out = io.BytesIO(text)
     out.seek(0)
     return np.load(out)
+
+
+def test():
+    my_domain = Domain("mnist", "RF")
+    my_domain.load(small=True)
+
+    my_testpoint = TestPoint.generate_test(my_domain)
+    exp = Explainer(my_testpoint)
+    print(
+        f"Tests succeeded with {len(exp.factuals)} factuals and {len(exp.counterfactuals)} counterfactuals."
+    )
 
 
 ## CODE EXECUTED AFTER LIBRARY DEFINITION
