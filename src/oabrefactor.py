@@ -269,7 +269,9 @@ class Domain:
     Domain has metadata set, clases set, fetches ae and blackbox from files
     """
 
-    dataset_name: str = field()
+    dataset_name: str = field(
+        validator=validators.in_({"mnist", "fashion", "emnist", "custom"})
+    )
     bb_type: str = field()
     metadata: dict = field()
     classes: list[str] = field(
@@ -280,13 +282,10 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list | None = field(init=False, default=None, repr=False)
-
-    @dataset_name.validator
-    def _dataset_validator(self, attribute, value):
-        possible_datasets = {"mnist", "fashion", "emnist", "custom"}
-        if value not in possible_datasets:
-            raise ValueError(f"Dataset {value} not implemented.")
+    explanation_base: list = field(
+        init=False, repr=False
+    )  # this can be list[np.ndarray] or list[TreePoint]
+    is_complete: bool = field(init=False, default=False)
 
     @bb_type.validator
     def _bb_string_validator(self, attribute, value):
@@ -309,9 +308,14 @@ class Domain:
     @metadata.default
     def _metadata_default(self):
         results = dict()
+        results["dataset"] = self.dataset_name
+        results["ae_name"] = "aae"
+        results["path_aemodels"] = (
+            f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+        )
+
         match self.dataset_name:
             case "mnist":
-                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
                         pass
@@ -319,13 +323,8 @@ class Domain:
                         pass
                     case _:
                         raise ValueError
-                results["dataset"] = "mnist"
                 results["shape"] = (28, 28, 3)
-                results["path_aemodels"] = (
-                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                )
             case "fashion":
-                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
                         pass
@@ -333,13 +332,8 @@ class Domain:
                         pass
                     case _:
                         raise ValueError
-                results["dataset"] = "fashion"
                 results["shape"] = (28, 28, 3)
-                results["path_aemodels"] = (
-                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                )
             case "emnist":
-                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
                         pass
@@ -347,11 +341,7 @@ class Domain:
                         pass
                     case _:
                         raise ValueError
-                results["dataset"] = "emnist"
                 results["shape"] = (28, 28, 3)
-                results["path_aemodels"] = (
-                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                )
             case "custom":
                 raise NotImplementedError
             case _:
@@ -361,9 +351,7 @@ class Domain:
     @classes.default
     def _classes_default(self):
         match self.dataset_name:
-            case "mnist":
-                return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-            case "fashion":
+            case "mnist" | "fashion":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "emnist":
                 return [str(x) for x in range(1, 27)]
@@ -408,6 +396,10 @@ class Domain:
                 raise ValueError
         return Blackbox(dataset_name=self.dataset_name, bb_type=self.bb_type)
 
+    @explanation_base.default
+    def _explanation_base_default(self):
+        return load_all_partial(self)
+
     def load(self, small=False):
         logging.info(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
@@ -425,6 +417,7 @@ class Domain:
             self.explanation_base = load_all(self)
         logging.info(f"loaded {len(self.explanation_base)} in explanation base")
         print(f"loaded {len(self.explanation_base)} in explanation base")
+        self.is_complete = True
 
 
 @define
