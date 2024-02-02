@@ -428,17 +428,20 @@ class LatentDT:
     """
 
     predicted_class: str = field(converter=str)
-    model: sklearn.tree._classes.DecisionTreeClassifier
+    model: sklearn.tree._classes.DecisionTreeClassifier | None
     fidelity: float
     s_rules: str = field()
     s_counterrules: str = field()
-    model_json: dict = field(init=False, repr=False)
+    model_json: dict | None = field(init=False, repr=False)
     rule: ComplexRule = field(init=False)
     counterrules: list[Condition] = field(init=False)
 
     @model_json.default
     def _model_json_default(self):
-        return skljson.to_dict(self.model)
+        if self.model:
+            return skljson.to_dict(self.model)
+        else:
+            return None
 
     # TODO: remember to correct the rule/counterrules extraction in LatentDT: counterrules may be both simple and ComplexRule
     @rule.default
