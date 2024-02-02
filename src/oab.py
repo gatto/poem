@@ -1150,7 +1150,9 @@ def load(domain: Domain, id: int | set | list | tuple) -> None | TreePoint:
             row = row[0]  # there is only one row anyway
             assert id == row["id"]
 
-            rebuilt_dt = skljson.from_dict(row["DTmodel"])
+            # the following is to load the latentDT. But do I need it? No
+            # rebuilt_dt = skljson.from_dict(row["DTmodel"])
+            rebuilt_dt = None
 
             return TreePoint(
                 id=id,
@@ -1226,7 +1228,7 @@ class Connection:
             case "fashion":
                 possible_bb = {"RF", "DNN"}
             case "emnist":
-                possible_bb = {"DNN"}
+                possible_bb = {"RF", "DNN"}
             case "custom":
                 raise NotImplementedError
             case _:
