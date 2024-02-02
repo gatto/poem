@@ -1185,7 +1185,7 @@ def load_all(domain: Domain) -> list[TreePoint]:
     """
     results = []
 
-    for i in list_all(domain.dataset_name, domain.bb_type):
+    for i in track(list_all(domain.dataset_name, domain.bb_type)):
         results.append(load(domain, i))
     return results
 
