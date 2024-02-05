@@ -269,7 +269,9 @@ class Domain:
     Domain has metadata set, clases set, fetches ae and blackbox from files
     """
 
-    dataset_name: str = field()
+    dataset_name: str = field(
+        validator=validators.in_({"mnist", "fashion", "emnist", "custom"})
+    )
     bb_type: str = field()
     metadata: dict = field()
     classes: list[str] = field(
@@ -280,13 +282,10 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list | None = field(init=False, default=None)
-
-    @dataset_name.validator
-    def _dataset_validator(self, attribute, value):
-        possible_datasets = {"mnist", "fashion", "emnist", "custom"}
-        if value not in possible_datasets:
-            raise ValueError(f"Dataset {value} not implemented.")
+    explanation_base: list = field(
+        init=False, repr=False
+    )  # this can be list[np.ndarray] or list[TreePoint]
+    is_complete: bool = field(init=False, default=False)
 
     @bb_type.validator
     def _bb_string_validator(self, attribute, value):
@@ -309,9 +308,14 @@ class Domain:
     @metadata.default
     def _metadata_default(self):
         results = dict()
+        results["dataset"] = self.dataset_name
+        results["ae_name"] = "aae"
+        results["path_aemodels"] = (
+            f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+        )
+
         match self.dataset_name:
             case "mnist":
-                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
                         pass
@@ -319,13 +323,8 @@ class Domain:
                         pass
                     case _:
                         raise ValueError
-                results["dataset"] = "mnist"
                 results["shape"] = (28, 28, 3)
-                results["path_aemodels"] = (
-                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                )
             case "fashion":
-                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
                         pass
@@ -333,13 +332,8 @@ class Domain:
                         pass
                     case _:
                         raise ValueError
-                results["dataset"] = "fashion"
                 results["shape"] = (28, 28, 3)
-                results["path_aemodels"] = (
-                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                )
             case "emnist":
-                results["ae_name"] = "aae"
                 match self.bb_type:
                     case "RF":
                         pass
@@ -347,11 +341,7 @@ class Domain:
                         pass
                     case _:
                         raise ValueError
-                results["dataset"] = "emnist"
                 results["shape"] = (28, 28, 3)
-                results["path_aemodels"] = (
-                    f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-                )
             case "custom":
                 raise NotImplementedError
             case _:
@@ -361,9 +351,7 @@ class Domain:
     @classes.default
     def _classes_default(self):
         match self.dataset_name:
-            case "mnist":
-                return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-            case "fashion":
+            case "mnist" | "fashion":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "emnist":
                 return [str(x) for x in range(1, 27)]
@@ -408,23 +396,31 @@ class Domain:
                 raise ValueError
         return Blackbox(dataset_name=self.dataset_name, bb_type=self.bb_type)
 
-    def load(self, small=False):
+    @explanation_base.default
+    def _explanation_base_default(self):
+        return load_all_partial(self)
+
+    def load(self, subset_size: int | bool = False):
+        """
+        Actually loads the full explanation base in memory. This is a heavy operation.
+        Can use subset to load only a part of the explanation base.
+        """
+
         logging.info(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
         print(
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
-        if small:
-            for i in range(1000):
-                try:
-                    self.explanation_base.append(load(self, i))
-                except TypeError:
-                    self.explanation_base = [load(self, i)]
+        self.explanation_base = []
+        if subset_size:
+            for i in range(subset_size):
+                self.explanation_base.append(load(self, i))
         else:
             self.explanation_base = load_all(self)
         logging.info(f"loaded {len(self.explanation_base)} in explanation base")
         print(f"loaded {len(self.explanation_base)} in explanation base")
+        self.is_complete = True
 
 
 @define
@@ -797,7 +793,7 @@ class TestPoint:
 
 
 def ranking_knn(
-    target: TestPoint, my_points: list[ImageExplanation] | list[TreePoint]
+    target: np.ndarray, my_points: list[np.ndarray] | list[ImageExplanation]
 ) -> list[tuple[float, int]]:
     """
     outputs a list of indexes
@@ -805,9 +801,26 @@ def ranking_knn(
     closest point is index=0, farthest point is index=len(my_points)
     """
 
-    neigh = NearestNeighbors(n_neighbors=len(my_points))
-    neigh.fit([x.latent.a for x in my_points])
-    results = neigh.kneighbors([target.latent.a])
+    if isinstance(target, TreePoint):
+        temp_target = target.latent.a
+    elif isinstance(target, np.ndarray):
+        temp_target = target
+    else:
+        raise ValueError(
+            f"target should be a TreePoint or np.ndarray, instead it was {type(target)}"
+        )
+    if isinstance(my_points[0], ImageExplanation):
+        my_temp_points = [x.latent.a for x in my_points]
+    elif isinstance(my_points[0], np.ndarray):
+        my_temp_points = my_points
+    else:
+        raise ValueError(
+            f"my_points should be a list of ImageExplanation or np.ndarray, instead it was {type(my_points[0])}"
+        )
+
+    neigh = NearestNeighbors(n_neighbors=len(my_temp_points))
+    neigh.fit(my_temp_points)
+    results = neigh.kneighbors([temp_target])
     # results: tuple(np.ndarray, np.ndarray)
     # results[0].shape = (1, n_neighbors) are the distances
     # results[1].shape = (1, n_neighbors) are the indexes
@@ -932,7 +945,7 @@ class Explainer:
             return None
 
         logging.info(f"Doing factuals with target point id={self.target.id}")
-        results = []
+        results: list[ImageExplanation] = []
 
         logging.info(f"{self.howmany=}")
         for factual in range(self.howmany * 10):
@@ -1078,16 +1091,19 @@ def knn(point: TestPoint) -> TreePoint:
     """
     logging.info("start of knn")
 
-    points: list[TreePoint] = point.domain.explanation_base
+    points: list[np.ndarray] = point.domain.explanation_base
     logging.info(f"loaded all {len(points)} amount of points in explanation base")
     # indexes_by_distance is a tuple(distance, index of record at that distance)
-    indexes_by_distance: tuple(float, int) = ranking_knn(target=point, my_points=points)
+    indexes_by_distance: tuple(float, int) = ranking_knn(
+        target=point.latent.a, my_points=points
+    )
 
     for i, target_index in enumerate(indexes_by_distance):
-        target_index = target_index[1]
+        target_index = int(target_index[1])
+        target: TreePoint = load(point.domain, target_index)
 
         # check 1: the margins of the latent space
-        if point in points[target_index].latent:
+        if point in target.latent:
             logging.info("checked margins")
             pass  # go to next check
         else:
@@ -1096,7 +1112,7 @@ def knn(point: TestPoint) -> TreePoint:
             continue
 
         # check 2: if bb predicted class match of testpoint and selected treepoint
-        if point.blackboxpd == points[target_index].blackboxpd:
+        if point.blackboxpd == target.blackboxpd:
             logging.info("checked class")
             pass  # go to next check
         else:
@@ -1105,11 +1121,11 @@ def knn(point: TestPoint) -> TreePoint:
             continue
 
         # check 3: if testpoint doesn't satisfy target's positive rule
-        if point in points[target_index].latentdt.rule:
+        if point in target.latentdt.rule:
             logging.info("checked positive rule")
 
             # we done - I return the entire TreePoint
-            return points[target_index]
+            return target
         else:
             # otherwise, go to next point
             logging.warning(f"in run {i}: positive rule failure")
@@ -1204,6 +1220,61 @@ def load_all(domain: Domain) -> list[TreePoint]:
             results.append(load(domain, i))
             progress.advance(overall)
             progress.refresh()
+    return results
+
+
+def load_partial(domain: Domain, id: int | set | list | tuple) -> None | np.ndarray:
+    """
+    Loads a TreePoint.lantent.a: np.ndarray if you pass an id:int
+    Loads a list of the same, ordered by id, if you pass a collection
+    """
+    if isinstance(id, int):
+        with Connection(domain.dataset_name, domain.bb_type) as con:
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+
+            row = cur.execute("SELECT latent FROM data WHERE id = ?", (id,))
+            # print([element[0] for element in res.description]) # this gives table column names
+            row = row.fetchall()
+
+        if len(row) == 0:
+            return None
+        elif len(row) > 1:
+            raise Exception(
+                f"the id {id} is supposed to be unique but it's not in this database"
+            )
+        else:
+            row = row[0]  # there is only one row anyway
+            return row["latent"]
+
+    elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
+        to_load = sorted([x for x in id])
+        results = []
+        for i in to_load:
+            results.append(load_partial(domain, i))
+        return results
+    else:
+        raise TypeError(f"id was of an unrecognized type: {type(id)}")
+
+
+def load_all_partial(domain: Domain) -> list[np.ndarray]:
+    """
+    Returns a list of all TreePoint.lantent.a: np.ndarray that are in the sql db
+    """
+    results = []
+
+    all_records_in_explbase = list_all(domain.dataset_name, domain.bb_type)
+
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+    ) as progress:
+        overall = progress.add_task("🧺️", total=len(all_records_in_explbase))
+
+        for i in all_records_in_explbase:
+            results.append(load_partial(domain, i))
+            progress.advance(overall)
     return results
 
 
@@ -1335,7 +1406,6 @@ def _convert_array(text):
 
 def test():
     my_domain = Domain("mnist", "RF")
-    my_domain.load(small=True)
 
     my_testpoint = TestPoint.generate_test(my_domain)
     exp = Explainer(my_testpoint)
@@ -1460,10 +1530,3 @@ if __name__ == "__main__":
             print(f"We have {len(all_records)} TreePoints in the database.")
         else:
             print("[red]No records")
-
-"""
-con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-cur = con.cursor()
-uuu = cur.execute(f"SELECT * FROM sqlite_master").fetchall()
-print(f"metadata:\n{uuu}")
-"""
