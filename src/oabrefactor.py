@@ -801,13 +801,13 @@ def ranking_knn(
     closest point is index=0, farthest point is index=len(my_points)
     """
 
-    if isinstance(target, ImageExplanation):
+    if isinstance(target, TreePoint):
         temp_target = target.latent.a
     elif isinstance(target, np.ndarray):
         temp_target = target
     else:
         raise ValueError(
-            f"target should be a list of ImageExplanation or np.ndarray, instead it was {type(target)}"
+            f"target should be a TreePoint or np.ndarray, instead it was {type(target)}"
         )
     if isinstance(my_points[0], ImageExplanation):
         my_temp_points = [x.latent.a for x in my_points]
