@@ -1082,7 +1082,7 @@ def knn(point: TestPoint) -> TreePoint:
     )
 
     for i, target_index in enumerate(indexes_by_distance):
-        target_index = target_index[1]
+        target_index = int(target_index[1])
         target: TreePoint = load(point.domain, target_index)
 
         # check 1: the margins of the latent space
