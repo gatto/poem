@@ -6,7 +6,6 @@ from rich.progress import (
     MofNCompleteColumn,
     Progress,
     TextColumn,
-    TimeRemainingColumn,
 )
 from watchfiles import watch
 
