@@ -793,7 +793,7 @@ class TestPoint:
 
 
 def ranking_knn(
-    target: np.ndarray, my_points: list[np.ndarray]
+    target: np.ndarray, my_points: list[np.ndarray] | list[ImageExplanation]
 ) -> list[tuple[float, int]]:
     """
     outputs a list of indexes
@@ -801,8 +801,17 @@ def ranking_knn(
     closest point is index=0, farthest point is index=len(my_points)
     """
 
-    neigh = NearestNeighbors(n_neighbors=len(my_points))
-    neigh.fit(my_points)
+    if isinstance(my_points[0], "ImageExplanation"):
+        my_temp_points = [x.latent.a for x in my_points]
+    elif isinstance(my_points[0], "np.ndarray"):
+        my_temp_points = my_points
+    else:
+        raise ValueError(
+            f"my_points should be a list of ImageExplanation or np.ndarray, instead it was {type(my_points[0])}"
+        )
+
+    neigh = NearestNeighbors(n_neighbors=len(my_temp_points))
+    neigh.fit(my_temp_points)
     results = neigh.kneighbors([target])
     # results: tuple(np.ndarray, np.ndarray)
     # results[0].shape = (1, n_neighbors) are the distances
@@ -928,7 +937,7 @@ class Explainer:
             return None
 
         logging.info(f"Doing factuals with target point id={self.target.id}")
-        results = []
+        results: list[ImageExplanation] = []
 
         logging.info(f"{self.howmany=}")
         for factual in range(self.howmany * 10):
@@ -1513,10 +1522,3 @@ if __name__ == "__main__":
             print(f"We have {len(all_records)} TreePoints in the database.")
         else:
             print("[red]No records")
-
-"""
-con = sqlite3.connect(data_table_path, detect_types=sqlite3.PARSE_DECLTYPES)
-cur = con.cursor()
-uuu = cur.execute(f"SELECT * FROM sqlite_master").fetchall()
-print(f"metadata:\n{uuu}")
-"""
