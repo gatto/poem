@@ -801,6 +801,14 @@ def ranking_knn(
     closest point is index=0, farthest point is index=len(my_points)
     """
 
+    if isinstance(target, ImageExplanation):
+        temp_target = target.latent.a
+    elif isinstance(target, np.ndarray):
+        temp_target = target
+    else:
+        raise ValueError(
+            f"target should be a list of ImageExplanation or np.ndarray, instead it was {type(target)}"
+        )
     if isinstance(my_points[0], ImageExplanation):
         my_temp_points = [x.latent.a for x in my_points]
     elif isinstance(my_points[0], np.ndarray):
@@ -812,7 +820,7 @@ def ranking_knn(
 
     neigh = NearestNeighbors(n_neighbors=len(my_temp_points))
     neigh.fit(my_temp_points)
-    results = neigh.kneighbors([target])
+    results = neigh.kneighbors([temp_target])
     # results: tuple(np.ndarray, np.ndarray)
     # results[0].shape = (1, n_neighbors) are the distances
     # results[1].shape = (1, n_neighbors) are the indexes
