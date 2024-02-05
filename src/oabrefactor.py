@@ -400,7 +400,7 @@ class Domain:
     def _explanation_base_default(self):
         return load_all_partial(self)
 
-    def load(self, subset: int | bool = False):
+    def load(self, subset_size: int | bool = False):
         """
         Actually loads the full explanation base in memory. This is a heavy operation.
         Can use subset to load only a part of the explanation base.
@@ -413,8 +413,8 @@ class Domain:
             f"start loading the explanation base for {self.dataset_name}, {self.bb_type}"
         )
         self.explanation_base = []
-        if subset:
-            for i in range(subset):
+        if subset_size:
+            for i in range(subset_size):
                 self.explanation_base.append(load(self, i))
         else:
             self.explanation_base = load_all(self)
@@ -1083,7 +1083,7 @@ def knn(point: TestPoint) -> TreePoint:
 
     for i, target_index in enumerate(indexes_by_distance):
         target_index = target_index[1]
-        target: TreePoint = load(target_index)
+        target: TreePoint = load(point.domain, target_index)
 
         # check 1: the margins of the latent space
         if point in target.latent:
