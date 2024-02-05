@@ -801,7 +801,7 @@ def ranking_knn(
     closest point is index=0, farthest point is index=len(my_points)
     """
 
-    if isinstance(my_points[0], "ImageExplanation"):
+    if isinstance(my_points[0], ImageExplanation):
         my_temp_points = [x.latent.a for x in my_points]
     elif isinstance(my_points[0], "np.ndarray"):
         my_temp_points = my_points
