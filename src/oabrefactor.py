@@ -803,7 +803,7 @@ def ranking_knn(
 
     if isinstance(my_points[0], ImageExplanation):
         my_temp_points = [x.latent.a for x in my_points]
-    elif isinstance(my_points[0], "np.ndarray"):
+    elif isinstance(my_points[0], np.ndarray):
         my_temp_points = my_points
     else:
         raise ValueError(
