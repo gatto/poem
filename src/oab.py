@@ -835,8 +835,8 @@ def ranking_knn(
         )
     if isinstance(my_points[0], ImageExplanation):
         my_temp_points = [x.latent.a for x in my_points]
-    elif isinstance(my_points[0], Point):
-        my_temp_points = sorted(my_points, key=lambda x: x.id)
+    elif isinstance(my_points[0], Point):  # we assume that my_points are sorted already
+        my_temp_points = [x.a for x in my_points]
     else:
         raise ValueError(
             f"my_points should be a list of ImageExplanation or np.ndarray, instead it was {type(my_points[0])}"
