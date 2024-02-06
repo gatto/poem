@@ -1111,7 +1111,11 @@ def knn(point: TestPoint, return_critical_count: bool = False) -> TreePoint:
             logging.warning(f"in run {i}: positive rule failure")
             continue
 
-    return None  # No target found in the entire explanation base
+    # No target found in the entire explanation base
+    if return_critical_count:
+        return None, i
+    else:
+        return None
 
 
 def list_all(dataset_name, bb_type) -> list[int]:
