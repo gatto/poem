@@ -72,6 +72,12 @@ geq = {">=", ">"}
 
 
 @define
+class Point:
+    a: np.ndarray = field(validator=validators.instance_of(np.ndarray))
+    id: int = field(validator=validators.instance_of(int))
+
+
+@define
 class Condition:
     """
     structure of a Condition:
@@ -164,14 +170,11 @@ class ComplexRule:
 
 @define
 class Blackbox:
-    """
-    Usage:
-    Blackbox.predict(point) returns a class prediction of type str
-    """
-
     dataset_name: str = field(repr=False, validator=validators.instance_of(str))
     bb_type: str = field(validator=validators.instance_of(str))
-    model: dict = field(init=False, repr=lambda value: f"{value.keys()}")
+    model: dict = field(
+        init=False, repr=lambda value: f"dict with keys: {value.keys()}"
+    )
 
     @model.default
     def _model_default(self) -> dict:
@@ -209,7 +212,7 @@ class Blackbox:
             case "custom":
                 raise NotImplementedError
 
-    def predict(self, a):
+    def predict(self, a: np.ndarray) -> str:
         return self.model["predict"](np.expand_dims(a, axis=0))[0]
 
 
@@ -220,13 +223,6 @@ class BlackboxPD:
 
 @define
 class AE:
-    """
-    Methods:
-    .encode(Point)
-    .decode(Point)
-    .discriminate(Point)
-    """
-
     dataset_name: str = field(repr=False, validator=validators.instance_of(str))
     metadata: dict = field(repr=False)
     model = field(init=False, repr=lambda value: f"{type(value)}")
@@ -273,6 +269,7 @@ class Domain:
         validator=validators.in_({"mnist", "fashion", "emnist", "custom"})
     )
     bb_type: str = field()
+    subset_size: int | bool = field(default=None)
     metadata: dict = field()
     classes: list[str] = field(
         validator=validators.deep_iterable(
@@ -282,7 +279,7 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list = field(
+    explanation_base: list[Point] = field(
         init=False, repr=False
     )  # this can be list[np.ndarray] or list[TreePoint]
     is_complete: bool = field(init=False, default=False)
@@ -398,7 +395,36 @@ class Domain:
 
     @explanation_base.default
     def _explanation_base_default(self):
-        return load_all_partial(self)
+        if self.subset_size:
+            results = []
+
+            with Progress(
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                MofNCompleteColumn(),
+            ) as progress:
+                overall = progress.add_task("🧺️", total=self.subset_size)
+
+                # start loading stratified over class
+                for myclass in self.classes:
+                    myclass: str
+
+                    with Connection(self.dataset_name, self.bb_type) as con:
+                        con.row_factory = sqlite3.Row
+                        cur = con.cursor()
+
+                        rows = cur.execute(
+                            "SELECT id, latent FROM data WHERE DTpredicted = ?",
+                            (myclass,),
+                        )
+                        rows = rows.fetchall()
+
+                    for row in rows[: self.subset_size // len(self.classes)]:
+                        results.append(Point(a=row["latent"], id=id))
+                        progress.advance(overall)
+            return sorted(results, key=lambda x: x.id)
+        else:
+            return load_all_partial(self)
 
     def load(self, subset_size: int | bool = False):
         """
@@ -513,8 +539,6 @@ class Latent:
     a: the record in latent representation
     margins: the margins of the neighborhood that was generated around a, if any. Is None if I generate myself the latent.a instead
     of getting it from Abele: in this case there never was a generated neighborhood for the point.
-
-    Construction: Latent(a:np.ndarray, margins=np.ndarray | None, )
     """
 
     a: np.ndarray = field(
@@ -793,10 +817,10 @@ class TestPoint:
 
 
 def ranking_knn(
-    target: np.ndarray, my_points: list[np.ndarray] | list[ImageExplanation]
+    target: np.ndarray, my_points: list[Point] | list[ImageExplanation]
 ) -> list[tuple[float, int]]:
     """
-    outputs a list of indexes
+    outputs a list of (distance, Point)
     in ascending order of distance from target
     closest point is index=0, farthest point is index=len(my_points)
     """
@@ -811,8 +835,8 @@ def ranking_knn(
         )
     if isinstance(my_points[0], ImageExplanation):
         my_temp_points = [x.latent.a for x in my_points]
-    elif isinstance(my_points[0], np.ndarray):
-        my_temp_points = my_points
+    elif isinstance(my_points[0], Point):
+        my_temp_points = sorted(my_points, key=lambda x: x.id)
     else:
         raise ValueError(
             f"my_points should be a list of ImageExplanation or np.ndarray, instead it was {type(my_points[0])}"
@@ -1044,16 +1068,16 @@ def knn(point: TestPoint, return_critical_count: bool = False) -> TreePoint:
     """
     logging.info("start of knn")
 
-    points: list[np.ndarray] = point.domain.explanation_base
+    points: list[Point] = point.domain.explanation_base
     logging.info(f"loaded all {len(points)} amount of points in explanation base")
-    # indexes_by_distance is a tuple(distance, index of record at that distance)
-    indexes_by_distance: tuple(float, int) = ranking_knn(
+    # points_by_distance is a tuple(distance, Point at that distance)
+    indexes_by_distance: list[list[float, int]] = ranking_knn(
         target=point.latent.a, my_points=points
     )
 
     for i, target_index in enumerate(indexes_by_distance):
-        target_index = int(target_index[1])
-        target: TreePoint = load(point.domain, target_index)
+        target_index: int = target_index[1]
+        target: TreePoint = load(point.domain, points[target_index].id)
 
         # check 1: the margins of the latent space
         if point in target.latent:
@@ -1087,8 +1111,7 @@ def knn(point: TestPoint, return_critical_count: bool = False) -> TreePoint:
             logging.warning(f"in run {i}: positive rule failure")
             continue
 
-    # raise RuntimeError("We've run out of TreePoints during knn")
-    return None
+    return None  # No target found in the entire explanation base
 
 
 def list_all(dataset_name, bb_type) -> list[int]:
@@ -1179,9 +1202,11 @@ def load_all(domain: Domain) -> list[TreePoint]:
     return results
 
 
-def load_partial(domain: Domain, id: int | set | list | tuple) -> None | np.ndarray:
+def load_partial(
+    domain: Domain, id: int | set | list | tuple
+) -> None | Point | list[Point]:
     """
-    Loads a TreePoint.lantent.a: np.ndarray if you pass an id:int
+    Loads a Point with a:np.ndarray if you pass an id:int
     Loads a list of the same, ordered by id, if you pass a collection
     """
     if isinstance(id, int):
@@ -1201,7 +1226,7 @@ def load_partial(domain: Domain, id: int | set | list | tuple) -> None | np.ndar
             )
         else:
             row = row[0]  # there is only one row anyway
-            return row["latent"]
+            return Point(a=row["latent"], id=id)
 
     elif isinstance(id, set) or isinstance(id, list) or isinstance(id, tuple):
         to_load = sorted([x for x in id])
@@ -1213,7 +1238,7 @@ def load_partial(domain: Domain, id: int | set | list | tuple) -> None | np.ndar
         raise TypeError(f"id was of an unrecognized type: {type(id)}")
 
 
-def load_all_partial(domain: Domain) -> list[np.ndarray]:
+def load_all_partial(domain: Domain) -> list[Point]:
     """
     Returns a list of all TreePoint.lantent.a: np.ndarray that are in the sql db
     """
