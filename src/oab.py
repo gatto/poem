@@ -839,7 +839,6 @@ class Explainer:
     dataset: name of the standard dataset (supported datasets are in Domain._dataset_validator)
     howmany:int how many prototypes (positive exemplars) to generate. The number of counterfactuals
         generated is always == the number of counterrules.
-    save: whether to save generated exemplars to data_path (for testing purposes)
     target: the TreePoint most similar to testpoint
 
     Offers methods:
@@ -848,19 +847,16 @@ class Explainer:
         a: np.ndarray,
         dataset: str,
         howmany: int = 3,
-        save: bool = False
         ): intended entry point to Explainer, explain from array a
     .from_file(): intended entry point to Explainer, explain from file
     """
 
     testpoint: TestPoint
     howmany: int = field(default=3)
-    save: bool = field(default=False)
-    fail: bool = field(default=False)
-    target: TreePoint = field(init=False)
-    critical_count: int = field(default=0)
+    fail: bool = field(init=False, default=False)  # is True if target is None
+    knn_runs_count: int = field(init=False, default=0)
+    target: TreePoint | None = field(init=False)  # None if the knn fails
     counterfactuals: list[ImageExplanation] = field(init=False)
-    # eps_factuals: list[ImageExplanation] = field(init=False)
     factuals: list[ImageExplanation] = field(init=False)
 
     @howmany.validator
@@ -870,7 +866,8 @@ class Explainer:
 
     @target.default
     def _target_default(self) -> TreePoint:
-        if result := knn(self.testpoint):
+        result, self.knn_runs_count = knn(self.testpoint, return_critical_count=True)
+        if result:
             return result
         else:
             logging.error(f"could not get a valid target for {self.testpoint}")
@@ -878,8 +875,8 @@ class Explainer:
 
     @counterfactuals.default
     def _counterfactuals_default(self, more=False):
-        if self.fail:
-            return None
+        if not self.target:
+            return []
         logging.info(f"Doing counterfactuals with target point id={self.target.id}")
         # for now, set epsilon statically. TODO: do a hypoteses test for an epsilon
         # statistically *slightly* bigger than zero
@@ -894,42 +891,9 @@ class Explainer:
             # Also it might be that the point is not a counterfactual (classifies the same). Don't continue with that.
             if point and point.blackboxpd != self.target.blackboxpd:
                 results.append(point)
-                if self.save:
-                    plt.imshow(point.a.astype("uint8"), cmap="gray")
-                    plt.title(
-                        f"counterfactual - black box predicted class: {point.blackboxpd.predicted_class}"
-                    )
-                    plt.savefig(data_path / f"counter_{i}.png", dpi=150)
+                # plt.title(f"counterfactual - black box predicted class: {point.blackboxpd.predicted_class}")
 
         logging.info(f"I made {len(results)} counterfactuals.")
-
-        # the following if is for the library attrs. We don't want to return an empty list as
-        # a default value of a class attribute. We want to use attrs factories. See attrs website.
-        return results
-
-    # @eps_factuals.default
-    def _eps_factuals_default(self):
-        if self.fail:
-            return None
-        logging.info(f"Doing epsilon-factuals with target point id={self.target.id}")
-        results = []
-
-        for factual in range(self.howmany):
-            point: ImageExplanation = self.testpoint.perturb(
-                self.target.latentdt.rule, old_method=True
-            )
-            if point:
-                results.append(point)
-
-        if self.save:
-            for i, point in enumerate(results):
-                plt.imshow(point.a.astype("uint8"), cmap="gray")
-                plt.title(
-                    f"epsilon factual - black box predicted class: {point.blackboxpd.predicted_class}"
-                )
-                plt.savefig(data_path / f"fact_{i}.png", dpi=150)
-
-        logging.info(f"I made {len(results)} epsilon-factuals.")
         return results
 
     @factuals.default
@@ -941,8 +905,8 @@ class Explainer:
         For debug purposes or if you have specific needs you can set closest=True
         to return the .howmany **closest** from testpoint.
         """
-        if self.fail:
-            return None
+        if not self.target:
+            return []
 
         logging.info(f"Doing factuals with target point id={self.target.id}")
         results: list[ImageExplanation] = []
@@ -979,13 +943,7 @@ class Explainer:
         indexes_to_take = [x[1] for x in ranking]
         results = [results[i] for i in indexes_to_take]
 
-        if self.save:
-            for i, point in enumerate(results):
-                plt.imshow(point.a.astype("uint8"), cmap="gray")
-                plt.title(
-                    f"factual - black box predicted class: {point.blackboxpd.predicted_class}"
-                )
-                plt.savefig(data_path / f"new_fact_{i}.png", dpi=150)
+        # plt.title(f"factual - black box predicted class: {point.blackboxpd.predicted_class}")
 
         logging.info(f"I made {len(results)} factuals.")
         return results
@@ -1051,9 +1009,7 @@ class Explainer:
         return result
 
     @classmethod
-    def from_array(
-        cls, a: np.ndarray, domain: Domain, howmany: int = 3, save: bool = False
-    ):
+    def from_array(cls, a: np.ndarray, domain: Domain, howmany: int = 3):
         """
         This is the main method that should be exposed externally.
         intended usage:
@@ -1065,13 +1021,10 @@ class Explainer:
         return cls(
             testpoint=TestPoint(a=a, domain=domain),
             howmany=howmany,
-            save=save,
         )
 
     @classmethod
-    def from_file(
-        cls, my_path: Path, domain: Domain, howmany: int = 3, save: bool = False
-    ):
+    def from_file(cls, my_path: Path, domain: Domain, howmany: int = 3):
         """
         This is another method that should be exposed externally.
         intended usage:
@@ -1081,10 +1034,10 @@ class Explainer:
         """
 
         my_array = io.imread(my_path)
-        return cls.from_array(a=my_array, domain=domain, howmany=howmany, save=save)
+        return cls.from_array(a=my_array, domain=domain, howmany=howmany)
 
 
-def knn(point: TestPoint) -> TreePoint:
+def knn(point: TestPoint, return_critical_count: bool = False) -> TreePoint:
     """
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
@@ -1125,7 +1078,10 @@ def knn(point: TestPoint) -> TreePoint:
             logging.info("checked positive rule")
 
             # we done - I return the entire TreePoint
-            return target
+            if return_critical_count:
+                return target, i
+            else:
+                return target
         else:
             # otherwise, go to next point
             logging.warning(f"in run {i}: positive rule failure")
