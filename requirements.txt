@@ -160,3 +160,4 @@ websocket-client==1.6.1
 Werkzeug==2.3.6
 wrapt==1.14.1
 zipp==3.16.2
+watchfiles==0.21.0
