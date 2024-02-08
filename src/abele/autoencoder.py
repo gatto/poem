@@ -3,9 +3,6 @@ from abc import abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import model_from_json
-from keras.src.saving import serialization_lib
-
-serialization_lib.enable_unsafe_deserialization()
 
 
 def save(model, model_name, path):
