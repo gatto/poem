@@ -3,6 +3,9 @@ from abc import abstractmethod
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.models import model_from_json
+from keras.src.saving import serialization_lib
+
+serialization_lib.enable_unsafe_deserialization()
 
 
 def save(model, model_name, path):
@@ -17,7 +20,7 @@ def save(model, model_name, path):
 def load(model_name, path):
     model_filename = "%s%s.json" % (path, model_name)
     weights_filename = "%s%s_weights.hdf5" % (path, model_name)
-    model = model_from_json(open(model_filename, "r").read(), safe_mode=False)
+    model = model_from_json(open(model_filename, "r").read())
     model.load_weights(weights_filename)
     return model
 
