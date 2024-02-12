@@ -17,18 +17,11 @@ import sqlite3
 import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
-from mnist import (
-    get_autoencoder,
-    get_black_box,
-    get_data,
-    get_dataset_metadata,
-    run_explain,
-)
+from mnist import get_autoencoder, get_black_box, get_data, get_dataset_metadata
 from rich import print
 from rich.console import Console
 from rich.progress import (
@@ -1488,7 +1481,7 @@ if __name__ == "__main__":
                 ) as f:
                     tosave = pickle.load(f)
             except FileNotFoundError:
-                tosave = run_explain(i, X_tree, Y_tree, dataset, bb_type)
+                print("not enough explanations saved on disk")
             # the following creates the actual data point
             miao = TreePoint(
                 id=i,

@@ -1,12 +1,5 @@
-import gc
-import json
-import logging
-import pickle
-import random
 import sys
 import warnings
-from collections import Counter
-from pathlib import Path
 
 warnings.filterwarnings("ignore")
 
@@ -23,7 +16,14 @@ if __name__ == "__main__":
             understanding | delete-all | train-aae | train-bb | explain <index_image_to_explain>"""
         )
 
-Path("./data").mkdir(exist_ok=True)
+
+import gc
+import json
+import logging
+import pickle
+import random
+from collections import Counter
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,16 +42,12 @@ from skimage.color import gray2rgb
 from sklearn.metrics import accuracy_score, classification_report
 from tensorflow.keras.datasets import fashion_mnist, mnist
 
+# preliminary
+Path("./data").mkdir(exist_ok=True)
 # parameters
 ae_name = "aae"
 random_state = None
 path = "./"
-# black_box = "RF"
-# dataset = "mnist"
-
-# path_aemodels = path + "data/aemodels/%s/%s/" % (dataset, ae_name)
-
-# path_aemodels = Path(path_aemodels)
 
 
 def rmse(x, y):
@@ -175,25 +171,25 @@ def get_dataset_metadata(dataset: str) -> dict:
             results["dataset"] = "mnist"
             results["use_rgb"] = False
 
-            results[
-                "path_aemodels"
-            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            results["path_aemodels"] = (
+                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            )
             results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case "fashion":
             results["dataset"] = "fashion"
             results["use_rgb"] = False
 
-            results[
-                "path_aemodels"
-            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            results["path_aemodels"] = (
+                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            )
             results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case "emnist":
             results["dataset"] = "emnist"
             results["use_rgb"] = False
 
-            results[
-                "path_aemodels"
-            ] = f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            results["path_aemodels"] = (
+                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            )
             results["classes"] = [str(x) for x in range(1, 27)]
         case _:
             raise NotImplementedError
