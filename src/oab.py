@@ -413,7 +413,7 @@ class Domain:
                         rows = rows.fetchall()
 
                     for row in rows[: self.subset_size // len(self.classes)]:
-                        results.append(Point(a=row["latent"], id=id))
+                        results.append(Point(a=row["latent"], id=row["id"]))
                         progress.advance(overall)
             return sorted(results, key=lambda x: x.id)
         else:
