@@ -24,7 +24,7 @@ if __name__ == "__main__":
         progress.start_task(task1)
 
         for _ in watch("data/progress/progr.pickle"):
-            progress.start_task(time)
+            progress.reset(time)
             with open("data/progress/progr.pickle", "rb") as f:
                 d = pickle.load(f)
             if d["good"]:
