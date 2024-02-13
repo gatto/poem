@@ -6,6 +6,7 @@ from rich.progress import (
     MofNCompleteColumn,
     Progress,
     TextColumn,
+    TimeElapsedColumn,
 )
 from watchfiles import watch
 
@@ -15,12 +16,15 @@ if __name__ == "__main__":
         TextColumn("[progress.description]{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
+        TimeElapsedColumn(),
     ) as progress:
         overall = progress.add_task("🧺️", total=5000)
         task1 = progress.add_task("👀", total=None)
+        time = progress.add_task("⏳", total=1)
         progress.start_task(task1)
 
         for _ in watch("data/progress/progr.pickle"):
+            progress.start_task(time)
             with open("data/progress/progr.pickle", "rb") as f:
                 d = pickle.load(f)
             if d["good"]:
