@@ -171,39 +171,34 @@ class Blackbox:
 
     @model.default
     def _model_default(self) -> dict:
+        use_rgb = False
+        results = dict()
         match self.dataset_name:
             case "mnist":
-                use_rgb = False  # g with mnist dataset
                 black_box_filename = f"./data/models/mnist_{self.bb_type}"
-
-                results = dict()
                 results["predict"], results["predict_proba"] = get_black_box(
                     self.bb_type, black_box_filename, use_rgb
                 )
-                return results
                 # the original usage is: Y_pred = bb_predict(X_test)
-
             case "fashion":
-                use_rgb = False
                 black_box_filename = f"./data/models/fashion_{self.bb_type}"
-
-                results = dict()
                 results["predict"], results["predict_proba"] = get_black_box(
                     self.bb_type, black_box_filename, use_rgb
                 )
-                return results
-                # the original usage is: Y_pred = bb_predict(X_test)
             case "emnist":
-                use_rgb = False
                 black_box_filename = f"./data/models/emnist_{self.bb_type}"
-                results = dict()
                 results["predict"], results["predict_proba"] = get_black_box(
                     self.bb_type, black_box_filename, use_rgb
                 )
-                return results
-
+            case "ethiopic":
+                black_box_filename = f"./data/models/ethiopic_{self.bb_type}"
+                results["predict"], results["predict_proba"] = get_black_box(
+                    self.bb_type, black_box_filename, use_rgb
+                )
             case "custom":
                 raise NotImplementedError
+
+        return results
 
     def predict(self, a: np.ndarray) -> str:
         return self.model["predict"](np.expand_dims(a, axis=0))[0]
@@ -252,14 +247,14 @@ class Domain:
     EXCEPT FOR A "CUSTOM" DATASET, WHICH WILL NOT BE IMPLEMENTED,
 
     Automatically knows everything it needs to know just by constructing it like:
-    Domain(dataset_name="mnist | xxx", bb_type="RF | xxx")
+    Domain(dataset_name="mnist | fashion | …", bb_type="RF | DNN")
     Each dataset has possible bb_types
 
     Domain has metadata set, clases set, fetches ae and blackbox from files
     """
 
     dataset_name: str = field(
-        validator=validators.in_({"mnist", "fashion", "emnist", "custom"})
+        validator=validators.in_({"mnist", "fashion", "emnist", "ethiopic", "custom"})
     )
     bb_type: str = field()
     subset_size: int | bool = field(default=None)
@@ -286,10 +281,10 @@ class Domain:
                 possible_bb = {"RF", "DNN"}
             case "emnist":
                 possible_bb = {"RF", "DNN"}
+            case "ethiopic":
+                possible_bb = {"RF", "DNN"}
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
         if value not in possible_bb:
             raise ValueError(
                 f"Blackbox type bb_type={value} not implemented. Possible are: {possible_bb}"
@@ -305,85 +300,38 @@ class Domain:
         )
 
         match self.dataset_name:
-            case "mnist":
-                match self.bb_type:
-                    case "RF":
-                        pass
-                    case "DNN":
-                        pass
-                    case _:
-                        raise ValueError
-                results["shape"] = (28, 28, 3)
-            case "fashion":
-                match self.bb_type:
-                    case "RF":
-                        pass
-                    case "DNN":
-                        pass
-                    case _:
-                        raise ValueError
-                results["shape"] = (28, 28, 3)
-            case "emnist":
-                match self.bb_type:
-                    case "RF":
-                        pass
-                    case "DNN":
-                        pass
-                    case _:
-                        raise ValueError
+            case "mnist" | "fashion" | "emnist" | "ethiopic":
                 results["shape"] = (28, 28, 3)
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
         return results
 
     @classes.default
     def _classes_default(self):
         match self.dataset_name:
-            case "mnist" | "fashion":
+            case "mnist" | "fashion" | "ethiopic":
                 return ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
             case "emnist":
                 return [str(x) for x in range(1, 27)]
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
 
     @ae.default
     def _ae_default(self):
-        """
-        this works already
-        """
         match self.dataset_name:
-            case "mnist":
-                pass
-            case "fashion":
-                pass
-            case "emnist":
+            case "mnist" | "fashion" | "emnist" | "ethiopic":
                 pass
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
         return AE(dataset_name=self.dataset_name, metadata=self.metadata)
 
     @blackbox.default
     def _blackbox_default(self):
-        """
-        this works already too
-        """
         match self.dataset_name:
-            case "mnist":
-                pass
-            case "fashion":
-                pass
-            case "emnist":
+            case "mnist" | "fashion" | "emnist" | "ethiopic":
                 pass
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
         return Blackbox(dataset_name=self.dataset_name, bb_type=self.bb_type)
 
     @explanation_base.default
@@ -1272,31 +1220,21 @@ class Connection:
     # res = cur.execute("SELECT name FROM sqlite_master WHERE name='spam'")
     # res.fetchone() is None
     # return cur
-    dataset_name: str = field()
+    dataset_name: str = field(
+        validator=validators.in_({"mnist", "fashion", "emnist", "ethiopic", "custom"})
+    )
     bb_type: str = field()
     method: str = field(default="sqlite")
     path: Path = field(init=False)
     connection = field(init=False, repr=lambda value: f"{type(value)}", default=None)
 
-    @dataset_name.validator
-    def _dataset_name_validator(self, attribute, value):
-        possible_datasets = {"mnist", "fashion", "emnist", "custom"}
-        if value not in possible_datasets:
-            raise NotImplementedError(f"Dataset {value} not implemented.")
-
     @bb_type.validator
     def _bb_type_validator(self, attribute, value):
         match self.dataset_name:
-            case "mnist":
-                possible_bb = {"RF", "DNN"}
-            case "fashion":
-                possible_bb = {"RF", "DNN"}
-            case "emnist":
+            case "mnist" | "fashion" | "emnist" | "ethiopic":
                 possible_bb = {"RF", "DNN"}
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
         if value not in possible_bb:
             raise NotImplementedError(
                 f"Blackbox type bb_type={value} not implemented. Possible are: {possible_bb}"
@@ -1320,28 +1258,26 @@ class Connection:
                         data_table_path = data_path / "mnist.db"
                     case "DNN":
                         data_table_path = data_path / "mnist-dnn.db"
-                    case _:
-                        raise NotImplementedError
             case "fashion":
                 match self.bb_type:
                     case "RF":
                         data_table_path = data_path / "fashion-rf.db"
                     case "DNN":
                         data_table_path = data_path / "fashion-dnn.db"
-                    case _:
-                        raise NotImplementedError
             case "emnist":
                 match self.bb_type:
                     case "RF":
                         data_table_path = data_path / "emnist-rf.db"
                     case "DNN":
                         data_table_path = data_path / "emnist-dnn.db"
-                    case _:
-                        raise NotImplementedError
+            case "ethiopic":
+                match self.bb_type:
+                    case "RF":
+                        data_table_path = data_path / "ethiopic-rf.db"
+                    case "DNN":
+                        data_table_path = data_path / "ethiopic-dnn.db"
             case "custom":
                 raise NotImplementedError
-            case _:
-                raise ValueError
         return data_table_path
 
     def __enter__(self):
@@ -1413,7 +1349,7 @@ if __name__ == "__main__":
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
-            (dataset) mnist | fashion | emnist
+            (dataset) mnist | fashion | emnist | ethiopic
             (blackbox type) rf | dnn
             and then:
             (testing) delete-all, run-tests, test-train <how many to load>,
@@ -1427,11 +1363,7 @@ if __name__ == "__main__":
         )
 
     match dataset:
-        case "mnist":
-            pass
-        case "fashion":
-            pass
-        case "emnist":
+        case "mnist" | "fashion" | "emnist" | "ethiopic":
             pass
         case _:
             raise NotImplementedError

@@ -221,6 +221,8 @@ def get_autoencoder(X, ae_name, dataset, path_aemodels, latent_dim=False):
             latent_dim = 4
         elif dataset == "fashion":
             latent_dim = 8
+        elif dataset == "ethiopic":
+            latent_dim = 8
         elif dataset == "cifar10":
             latent_dim = 16
         elif dataset == "cifar10bw":
@@ -233,7 +235,7 @@ def get_autoencoder(X, ae_name, dataset, path_aemodels, latent_dim=False):
     name = "%s_%s_%d" % (ae_name, dataset, latent_dim)
 
     if ae_name == "aae":
-        if dataset in ["mnist", "fashion", "cifar10bw", "emnist"]:
+        if dataset in ["mnist", "fashion", "cifar10bw", "emnist", "ethiopic"]:
             ae = AdversarialAutoencoderMnist(
                 shape=shape,
                 input_dim=input_dim,
@@ -257,34 +259,6 @@ def get_autoencoder(X, ae_name, dataset, path_aemodels, latent_dim=False):
             )
         else:
             return -1
-
-    elif ae_name == "vae":
-        if dataset in ["mnist", "fashion"]:
-            ae = VariationalAutoencoderMnist(
-                shape=shape,
-                input_dim=input_dim,
-                latent_dim=latent_dim,
-                verbose=verbose,
-                store_intermediate=store_intermediate,
-                path=path_aemodels,
-                name=name,
-            )
-
-        elif dataset in ["cifar10"]:
-            ae = VariationalAutoencoderCifar10(
-                shape=shape,
-                input_dim=input_dim,
-                latent_dim=latent_dim,
-                hidden_dim=128,
-                verbose=verbose,
-                store_intermediate=store_intermediate,
-                path=path_aemodels,
-                name=name,
-            )
-
-        else:
-            return -1
-
     else:
         print("unknown autoencoder %s" % ae_name)
         return -1

@@ -178,39 +178,16 @@ def get_dataset_metadata(dataset: str) -> dict:
     # otherwise fails cons = class_values[int(dt_outcome)]
     results = dict()
     results["ae_name"] = "aae"
+    results["dataset"] = dataset
+    results["use_rgb"] = False
+    results["path_aemodels"] = (
+        f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+    )
     match dataset:
-        case "mnist":
-            results["dataset"] = "mnist"
-            results["use_rgb"] = False
-
-            results["path_aemodels"] = (
-                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-            )
-            results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
-        case "fashion":
-            results["dataset"] = "fashion"
-            results["use_rgb"] = False
-
-            results["path_aemodels"] = (
-                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-            )
+        case "mnist" | "fashion" | "ethiopic":
             results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case "emnist":
-            results["dataset"] = "emnist"
-            results["use_rgb"] = False
-
-            results["path_aemodels"] = (
-                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-            )
             results["classes"] = [str(x) for x in range(1, 27)]
-        case "ethiopic":
-            results["dataset"] = "ethiopic"
-            results["use_rgb"] = False
-
-            results["path_aemodels"] = (
-                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
-            )
-            results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case _:
             raise NotImplementedError
 
