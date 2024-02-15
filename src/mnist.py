@@ -11,7 +11,7 @@ if __name__ == "__main__":
     except IndexError:
         raise Exception(
             """possible runtime arguments are:
-            mnist | fashion | emnist (dataset)
+            mnist | fashion | emnist | ethiopic (dataset)
             rf | dnn (blackbox model)
             understanding | delete-all | train-aae | train-bb | explain <index_image_to_explain>"""
         )
@@ -133,13 +133,25 @@ def get_data(dataset: str = "mnist") -> tuple:
             X_test, Y_test = extract_test_samples("letters")
             X_train = np.stack([gray2rgb(x) for x in X_train], 0)
             X_test = np.stack([gray2rgb(x) for x in X_test], 0)
+        case "ethiopic":
+            X_train = np.load("data/datasets/ethiopic/MNIST_X_train.npy")
+            Y_train = np.load("data/datasets/ethiopic/MNIST_y_train.npy")
+            X_test = np.load("data/datasets/ethiopic/MNIST_X_test.npy")
+            Y_test = np.load("data/datasets/ethiopic/MNIST_y_test.npy")
+            X_train = np.stack([gray2rgb(x) for x in X_train], 0)
+            X_test = np.stack([gray2rgb(x) for x in X_test], 0)
         case _:
             raise NotImplementedError
 
-    # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
-    indexes = random.sample(
-        range(X_train.shape[0]), X_train.shape[0] // 6
-    )  # g get a list of 1/6 indexes of the len of X_train
+    match dataset:
+        case "mnist" | "fashion" | "emnist":
+            # Extract X_tree, Y_tree with random (stable) sampling from X_train, Y_train (todo possible even better to gaussian sample it)
+            indexes = random.sample(
+                range(X_train.shape[0]), X_train.shape[0] // 6
+            )  # g get a list of 1/6 indexes of the len of X_train
+        case "ethiopic":
+            indexes = random.sample(range(X_train.shape[0]), X_train.shape[0] // 12)
+
     for x in track(range(X_train.shape[0]), description="Sampling X_tree, Y_tree"):
         if x in indexes:
             indexing_condition.append(True)
@@ -191,6 +203,14 @@ def get_dataset_metadata(dataset: str) -> dict:
                 f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
             )
             results["classes"] = [str(x) for x in range(1, 27)]
+        case "ethiopic":
+            results["dataset"] = "ethiopic"
+            results["use_rgb"] = False
+
+            results["path_aemodels"] = (
+                f"./data/aemodels/{results['dataset']}/{results['ae_name']}/"
+            )
+            results["classes"] = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
         case _:
             raise NotImplementedError
 
