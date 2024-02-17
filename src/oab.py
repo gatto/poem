@@ -487,6 +487,8 @@ class Latent:
         repr=lambda value: str(value) if len(value) < 10 else str(type(value)),
     )
     margins: np.ndarray | None = field(default=None)
+    hard_margins: bool = field(default=True)
+    eps: float = field(default=0.04)
 
     @margins.validator
     def _margins_validator(self, attribute, value):
@@ -506,8 +508,12 @@ class Latent:
         False otherwise
         """
         # return True  # temporary fix because the poliedro boundaries are all wrong
+        eps = self.eps
+
         for i, boundary in enumerate(self.margins):
-            if not (min(boundary) < test_point.latent.a[i] < max(boundary)):
+            lower_bndry = min(boundary) if self.hard_margins else min(boundary) - eps
+            upper_bndry = max(boundary) if self.hard_margins else max(boundary) + eps
+            if not (lower_bndry < test_point.latent.a[i] < upper_bndry):
                 # if the feature in test is outside of the boundaries, return bad
                 return False
         return True
@@ -818,6 +824,7 @@ class Explainer:
 
     testpoint: TestPoint
     howmany: int = field(default=3)
+    margins: str = field(default="hard")  # can be "hard" or "soft"
     fail: bool = field(init=False, default=False)  # is True if target is None
     knn_runs_count: int = field(init=False, default=0)
     target: TreePoint | None = field(init=False)  # None if the knn fails
@@ -831,7 +838,9 @@ class Explainer:
 
     @target.default
     def _target_default(self) -> TreePoint:
-        result, self.knn_runs_count = knn(self.testpoint, return_critical_count=True)
+        result, self.knn_runs_count = knn(
+            self.testpoint, return_critical_count=True, margins=self.margins
+        )
         if result:
             return result
         else:
@@ -1002,7 +1011,9 @@ class Explainer:
         return cls.from_array(a=my_array, domain=domain, howmany=howmany)
 
 
-def knn(point: TestPoint, return_critical_count: bool = False) -> TreePoint:
+def knn(
+    point: TestPoint, return_critical_count: bool = False, margins: str = "hard"
+) -> TreePoint:
     """
     this returns only the closest TreePoint to the inputted point `a`
     (in latent space representation)
@@ -1019,6 +1030,8 @@ def knn(point: TestPoint, return_critical_count: bool = False) -> TreePoint:
     for i, target_index in enumerate(indexes_by_distance):
         target_index: int = target_index[1]
         target: TreePoint = load(point.domain, points[target_index].id)
+        if margins == "soft":
+            target.latent.hard_margins = False
 
         # check 1: the margins of the latent space
         if point in target.latent:
