@@ -1011,6 +1011,32 @@ class Explainer:
         return cls.from_array(a=my_array, domain=domain, howmany=howmany)
 
 
+@define
+class DeletionExperiment:
+    """
+    Object used to run and store the results of a deletion experiment
+
+    explainer: Explainer
+    map: np.ndarray of saliency map
+    results: array of predictions
+    """
+
+    explainer: Explainer
+    map: np.ndarray
+    batch_size: int = field(default=10)
+    results: np.ndarray = field(init=False)
+
+    @results.default
+    def _results_default(self):
+        shape = self.explainer.testpoint.domain.metadata["shape"]
+        total_pixels = shape[0] * shape[1]
+        steps_count = total_pixels // self.batch_size
+        annotated_map = self.map  # continue from here
+
+        for i in range(steps_count):
+            print(f"running step {i} of {steps_count}")
+
+
 def knn(
     point: TestPoint, return_critical_count: bool = False, margins: str = "hard"
 ) -> TreePoint:
