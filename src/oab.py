@@ -1051,6 +1051,7 @@ class DeletionExperiment:
             most_important = annotated_map.nlargest(self.batch_size, "importance")
             # write black on the testpoint
             annotated_map.loc[most_important.index, "value"] = 0
+            annotated_map.loc[most_important.index, "importance"] = -1000
 
             # get new prediction
             newimg = annotated_map["value"].values.reshape(grayscale_shape)
