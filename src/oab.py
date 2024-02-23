@@ -1069,9 +1069,9 @@ class DeletionExperiment:
                         "pixels remaining": total_pixels - (i * self.batch_size),
                         "prediction": new_prediction,
                         "accurate": accurate,
-                    },
-                    ignore_index=True,
+                    }
                 ),
+                ignore_index=True,
             )
         return results
 
