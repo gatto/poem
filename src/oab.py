@@ -320,8 +320,10 @@ class Domain:
     @ae.default
     def _ae_default(self):
         match self.dataset_name:
-            case "mnist" | "fashion" | "emnist" | "ethiopic":
+            case "mnist" | "fashion" | "emnist":
                 pass
+            case "ethiopic":
+                return AE(dataset_name="afromnist_e", metadata=self.metadata)
             case "custom":
                 raise NotImplementedError
         return AE(dataset_name=self.dataset_name, metadata=self.metadata)
@@ -329,8 +331,10 @@ class Domain:
     @blackbox.default
     def _blackbox_default(self):
         match self.dataset_name:
-            case "mnist" | "fashion" | "emnist" | "ethiopic":
+            case "mnist" | "fashion" | "emnist":
                 pass
+            case "ethiopic":
+                return Blackbox(dataset_name="afromnist_e", bb_type=self.bb_type)
             case "custom":
                 raise NotImplementedError
         return Blackbox(dataset_name=self.dataset_name, bb_type=self.bb_type)
