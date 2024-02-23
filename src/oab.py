@@ -1029,6 +1029,7 @@ class DeletionExperiment:
 
     @results.default
     def _results_default(self):
+        grnd_truth: int = int(self.testpoint.blackboxpd.predicted_class)
         shape = self.explainer.testpoint.domain.metadata["shape"]
         grayscale_shape = shape[:-1]
         total_pixels = shape[0] * shape[1]
@@ -1043,7 +1044,18 @@ class DeletionExperiment:
         annotated_map["column"] = np.tile(range(shape[1]), shape[0])
         annotated_map["importance"] = self.map.flatten()
 
-        results = pd.DataFrame(columns=["pixels remaining", "prediction", "accurate"])
+        proba = self.explainer.testpoint.domain.blackbox.model["predict_proba"](
+            [self.explainer.testpoint.a]
+        )[0][grnd_truth]
+
+        results = pd.DataFrame.from_dict(
+            {
+                "pixels remaining": [total_pixels],
+                "prediction": [grnd_truth],
+                "accurate": [True],
+                "proba": [proba],
+            }
+        )
 
         for i in range(steps_count):
             print(f"running step {i} of {steps_count}")
@@ -1055,23 +1067,29 @@ class DeletionExperiment:
 
             # get new prediction
             newimg = annotated_map["value"].values.reshape(grayscale_shape)
-            new_prediction = self.explainer.testpoint.domain.blackbox.predict(
-                np.dstack((newimg, newimg, newimg))
-            )
+            newimg = np.dstack((newimg, newimg, newimg))
+            new_prediction = self.explainer.testpoint.domain.blackbox.predict(newimg)
             # compare with original prediction
             accurate = (
                 str(new_prediction)
                 == self.explainer.testpoint.blackboxpd.predicted_class
             )
+            proba = self.explainer.testpoint.domain.blackbox.model["predict_proba"](
+                [newimg]
+            )[0][grnd_truth]
+
             # save results
             results = pd.concat(
                 (
                     results,
                     pd.DataFrame.from_dict(
                         {
-                            "pixels remaining": [total_pixels - (i * self.batch_size)],
+                            "pixels remaining": [
+                                total_pixels - ((i + 1) * self.batch_size)
+                            ],
                             "prediction": [new_prediction],
                             "accurate": [accurate],
+                            "proba": [proba],
                         }
                     ),
                 ),
