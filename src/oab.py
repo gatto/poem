@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import sklearn
 import sklearn_json as skljson
 from attrs import define, field, validators
@@ -1031,10 +1032,42 @@ class DeletionExperiment:
         shape = self.explainer.testpoint.domain.metadata["shape"]
         total_pixels = shape[0] * shape[1]
         steps_count = total_pixels // self.batch_size
-        annotated_map = self.map  # continue from here
+        if total_pixels % self.batch_size != 0:
+            steps_count += 1
+
+        annotated_map = pd.DataFrame(columns=["row", "column", "value", "importance"])
+        annotated_map["value"] = self.explainer.testpoint.a.flatten()
+        annotated_map["row"] = np.repeat(range(shape[0]), shape[1])
+        annotated_map["column"] = np.tile(range(shape[1]), shape[0])
+        annotated_map["importance"] = self.map.flatten()
+
+        results = pd.DataFrame(columns=["pixels remaining", "prediction", "accurate"])
 
         for i in range(steps_count):
             print(f"running step {i} of {steps_count}")
+            # get the most important pixels
+            most_important = annotated_map.nlargest(self.batch_size, "importance")
+            # write black on the testpoint
+            annotated_map.loc[most_important.index, "value"] = 0
+
+            # get new prediction
+            new_prediction = self.explainer.testpoint.domain.blackbox.predict(
+                annotated_map["value"].values.reshape(shape)
+            )
+            # compare with original prediction
+            accurate = (
+                new_prediction == self.explainer.testpoint.blackboxpd.predicted_class
+            )
+            # save results
+            results = results.append(
+                {
+                    "pixels remaining": total_pixels - (i * self.batch_size),
+                    "prediction": new_prediction,
+                    "accurate": accurate,
+                },
+                ignore_index=True,
+            )
+        return results
 
 
 def knn(
