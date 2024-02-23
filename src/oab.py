@@ -1059,7 +1059,8 @@ class DeletionExperiment:
             )
             # compare with original prediction
             accurate = (
-                new_prediction == self.explainer.testpoint.blackboxpd.predicted_class
+                str(new_prediction)
+                == self.explainer.testpoint.blackboxpd.predicted_class
             )
             # save results
             results = pd.concat(
