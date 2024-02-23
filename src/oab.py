@@ -1036,7 +1036,8 @@ class DeletionExperiment:
             steps_count += 1
 
         annotated_map = pd.DataFrame(columns=["row", "column", "value", "importance"])
-        annotated_map["value"] = self.explainer.testpoint.a.flatten()
+        # the following only works correctly for grayscale - takes only the first channel
+        annotated_map["value"] = self.explainer.testpoint.a[:, :, 0].flatten()
         annotated_map["row"] = np.repeat(range(shape[0]), shape[1])
         annotated_map["column"] = np.tile(range(shape[1]), shape[0])
         annotated_map["importance"] = self.map.flatten()
