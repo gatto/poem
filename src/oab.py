@@ -1030,6 +1030,7 @@ class DeletionExperiment:
     @results.default
     def _results_default(self):
         shape = self.explainer.testpoint.domain.metadata["shape"]
+        grayscale_shape = shape[:-1]
         total_pixels = shape[0] * shape[1]
         steps_count = total_pixels // self.batch_size
         if total_pixels % self.batch_size != 0:
@@ -1052,8 +1053,9 @@ class DeletionExperiment:
             annotated_map.loc[most_important.index, "value"] = 0
 
             # get new prediction
+            newimg = annotated_map["value"].values.reshape(grayscale_shape)
             new_prediction = self.explainer.testpoint.domain.blackbox.predict(
-                annotated_map["value"].values.reshape(shape)
+                np.dstack((newimg, newimg, newimg))
             )
             # compare with original prediction
             accurate = (
