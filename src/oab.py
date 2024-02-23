@@ -1062,13 +1062,16 @@ class DeletionExperiment:
                 new_prediction == self.explainer.testpoint.blackboxpd.predicted_class
             )
             # save results
-            results = results.append(
-                {
-                    "pixels remaining": total_pixels - (i * self.batch_size),
-                    "prediction": new_prediction,
-                    "accurate": accurate,
-                },
-                ignore_index=True,
+            results = pd.concat(
+                results,
+                pd.DataFrame(
+                    {
+                        "pixels remaining": total_pixels - (i * self.batch_size),
+                        "prediction": new_prediction,
+                        "accurate": accurate,
+                    },
+                    ignore_index=True,
+                ),
             )
         return results
 
