@@ -1029,7 +1029,7 @@ class DeletionExperiment:
 
     @results.default
     def _results_default(self):
-        grnd_truth: int = int(self.testpoint.blackboxpd.predicted_class)
+        grnd_truth: int = int(self.explainer.testpoint.blackboxpd.predicted_class)
         shape = self.explainer.testpoint.domain.metadata["shape"]
         grayscale_shape = shape[:-1]
         total_pixels = shape[0] * shape[1]
@@ -1074,6 +1074,10 @@ class DeletionExperiment:
                 str(new_prediction)
                 == self.explainer.testpoint.blackboxpd.predicted_class
             )
+
+            # the following only works with class labels starting from 0.
+            # if not, we would need to patch Abele so that predict_proba is a dict
+            # that has as key the class label and as value the proba.
             proba = self.explainer.testpoint.domain.blackbox.model["predict_proba"](
                 [newimg]
             )[0][grnd_truth]
