@@ -221,7 +221,7 @@ def get_autoencoder(X, ae_name, dataset, path_aemodels, latent_dim=False):
             latent_dim = 4
         elif dataset == "fashion":
             latent_dim = 8
-        elif dataset == "ethiopic":
+        elif dataset == "afromnist_e":
             latent_dim = 8
         elif dataset == "cifar10":
             latent_dim = 16
@@ -235,7 +235,7 @@ def get_autoencoder(X, ae_name, dataset, path_aemodels, latent_dim=False):
     name = "%s_%s_%d" % (ae_name, dataset, latent_dim)
 
     if ae_name == "aae":
-        if dataset in ["mnist", "fashion", "cifar10bw", "emnist", "ethiopic"]:
+        if dataset in ["mnist", "fashion", "cifar10bw", "emnist", "afromnist_e"]:
             ae = AdversarialAutoencoderMnist(
                 shape=shape,
                 input_dim=input_dim,
