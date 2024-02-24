@@ -34,7 +34,7 @@ if __name__ == "__main__":
                     )
                     first_run = False
                 progress.update(task1, total=d["total"], completed=d["current"])
-                progress.update(overall, completed=d["current_index"])
+                progress.update(overall, completed=d["current_index"] + 1)
             else:
                 progress.stop()
                 print("[red]ERROR.")
