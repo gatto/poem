@@ -23,7 +23,7 @@ points = {}
 for my_class in range(10):
     index[my_class] = np.where(Y_test == my_class)[0]
 
-for i, my_index in track(enumerate(index[my_class])):
+for i, my_index in enumerate(track(index[my_class])):
     start = perf_counter()
     testpoint = oab.TestPoint(X_test[my_index], my_dom)
     logging.info(f"start explanation of index {my_index}")
