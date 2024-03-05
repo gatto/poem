@@ -1,18 +1,26 @@
 import logging
+import sys
 from time import perf_counter
 
 import numpy as np
 import pandas as pd
 from rich import print
 from rich.progress import track
-
 import oab
 
 results_table = []
 
-dataset_name = "mnist"
-algo_name = "RF"
-my_class = 0
+try:
+    dataset_name = sys.argv[1]
+    algo_name = sys.argv[2].upper()
+    my_class = int(sys.argv[3])
+except IndexError:
+    raise Exception(
+        """possible runtime arguments are:
+        mnist | fashion | emnist | afromnist_e (dataset)
+        rf | dnn (blackbox model)
+        0 | … | 9 (class to explain)"""
+    )
 
 how_many_images = 50  # how many images each combination of the above?
 
@@ -22,6 +30,7 @@ index = {}
 points = {}
 for my_class in range(10):
     index[my_class] = np.where(Y_test == my_class)[0]
+
 
 for i, my_index in enumerate(track(index[my_class])):
     start = perf_counter()
