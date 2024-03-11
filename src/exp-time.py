@@ -28,8 +28,8 @@ how_many_images = 50  # how many images each combination of the above?
 my_dom = oab.Domain(dataset_name, algo_name)
 index = {}
 points = {}
-for my_class in range(10):
-    index[my_class] = np.where(Y_test == my_class)[0]
+for i_class in range(10):
+    index[i_class] = np.where(Y_test == i_class)[0]
 
 
 for i, my_index in enumerate(track(index[my_class])):
