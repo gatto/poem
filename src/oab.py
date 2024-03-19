@@ -270,9 +270,7 @@ class Domain:
     )
     ae: AE = field()
     blackbox: Blackbox = field()
-    explanation_base: list[Point] = field(
-        init=False, repr=False
-    )  # this can be list[np.ndarray] or list[TreePoint]
+    explanation_base: list[Point] = field(init=False, repr=False)
     is_complete: bool = field(init=False, default=False)
 
     @bb_type.validator
