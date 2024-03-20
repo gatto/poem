@@ -25,7 +25,7 @@ except IndexError:
 how_many_images = 50  # how many images each combination of the above?
 
 (X_train, Y_train), (X_test, Y_test), (X_tree, Y_tree) = oab.get_data(dataset_name)
-my_dom = oab.Domain(dataset_name, algo_name, subset_size=expl_base_size)
+my_dom = oab.Domain(dataset_name, algo_name)
 index = {}
 points = {}
 match dataset_name:
