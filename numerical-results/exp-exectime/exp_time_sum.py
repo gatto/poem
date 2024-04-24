@@ -17,6 +17,8 @@ for dataset in datasets:
         for my_class in classes:
             loaded = pd.read_csv(f"time-{dataset}-{algo}-{my_class}.csv")
             loaded["crules"] = loaded["crules"].astype(str)
+            # drop rows that contain 'error' in the crules column
+            loaded = loaded[~loaded["crules"].str.contains("error")]
             if not first_run:
                 results = pd.concat((results, loaded), ignore_index=True)
             else:
@@ -24,7 +26,7 @@ for dataset in datasets:
                 results["crules"] = results["crules"].astype(str)
         print(f"[red]{dataset=}, {algo=}")
         print(results.describe())
-        hit_percentage = 1 - (results["crules"].value_counts()["error"] / len(results))
-        print(f"[red]Hit percentage:[/] {hit_percentage:.4f}")
+        # hit_percentage = 1 - (results["crules"].value_counts()["error"] / len(results))
+        # print(f"[red]Hit percentage:[/] {hit_percentage:.4f}")
 
 # metrics are execution time and hit percentage
