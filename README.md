@@ -1,8 +1,26 @@
-# offline-abele: a fast library for explainability in images
+# POEM: a fast library for explainability in images
 
-This project includes a contribution on the ABELE explainability pipeline. TODO: insert citation
+POEM is a fast library that produces explanations of excellent quality for ML predictions on images.
+
+It works in two steps:
+1. offline part: given the training dataset, POEM trains thousands of surrogate local models designed to mimic the blackbox predictor;
+2. online part: on user request for an explanation, it matches an incoming test image to one of the pre-trained local models and outputs a high quality explanation in a fraction of the time of its predecessor. The explanation is made of exemplars, counterexemplars and saliency map.
+
+The only key requirement to use POEM is to be able to train an effective latent space autoencoder for the specific dataset application.
+
+Thank you to my coauthors (listed below); thank you to my MSc supervisors Anna and Carlo; thank you to my PhD supervisor Fabio; thank you to the original authors of Abele; and finally thank you to all the PhD and MSc colleagues who supported me.
+
+## Citing this work
+
+Authors: Fabio Michele Russo, Carlo Metta, Anna Monreale, Salvatore Rinzivillo, Fabio Pinelli.
+
+*(exact citation to come, as publication is in progress. Accepted at [Discovery Science 2024](http://ds2024.isti.cnr.it).)*
 
 ## Getting started
+
+The library requires version 2.12 of Tensorflow because of Abele being written for that version. Therefore, any more recent version of Tensorflow will not work for the offline part (the only part that uses Abele).
+
+Moreover, the library requires an autoencoder having been trained for the dataset, bringing the records into a lower dimensional latent space.
 
 ### Prerequisites
 
@@ -42,6 +60,7 @@ python oab.py mnist test-train 10000
 
 Be advised that
 
+- `python mnist.py delete-all` creates the needed directory structure;
 - `python mnist.py train-aae` executes in around 30 minutes;
 - `python mnist.py explain 10000` executes in around 9 days with a GPU and takes about 500 MB on disk. It's recommended to batch execute this by substituting the line with this bash script:
 
