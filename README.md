@@ -12,9 +12,13 @@ Thank you to my coauthors (listed below); thank you to my MSc supervisors Anna a
 
 ## Citing this work
 
+```
 Russo, F.M., Metta, C., Monreale, A., Rinzivillo, S., Pinelli, F. (2025). Explainable AI in Time-Sensitive Scenarios: Prefetched Offline Explanation Model. In: Pedreschi, D., Monreale, A., Guidotti, R., Pellungrini, R., Naretto, F. (eds) Discovery Science. DS 2024. Lecture Notes in Computer Science(), vol 15244. Springer, Cham. https://doi.org/10.1007/978-3-031-78980-9_11
+```
 
 ### Published in
+
+Paper available at Springer: https://doi.org/10.1007/978-3-031-78980-9_11.
 
 *Proceedings of conference [Discovery Science 2024](http://ds2024.isti.cnr.it).*
 
